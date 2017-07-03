@@ -197,16 +197,25 @@ class assetLibrary(dict):
         WFpath = os.path.join(assetDirectory, '%s_w.jpg' % name)
 
         # make sure the viewport display is suitable
-        panel = pm.getPanel(wf=1)
+        panel = pm.getPanel(wf=True)
+
+        if pm.getPanel(to=panel) != "modelPanel":
+            pm.warning("The focus is not on a model panel, using the perspective view")
+            panel = pm.getPanel(wl="Persp View")
+            # Somehot wl dont return a regular string, convert it to a regular string
+            t = ""
+            for z in panel:
+                t += z
+            panel = t
+
         pm.modelEditor(panel, e=1, allObjects=1)
         pm.modelEditor(panel, e=1, da="smoothShaded")
         pm.modelEditor(panel, e=1, displayTextures=1)
         pm.modelEditor(panel, e=1, wireframeOnShaded=0)
         pm.viewFit()
 
-        currentPanel = pm.getPanel(wf=True)
-        pm.isolateSelect(currentPanel, state=1)
-        pm.isolateSelect(currentPanel, addSelected=True)
+        pm.isolateSelect(panel, state=1)
+        pm.isolateSelect(panel, addSelected=True)
         #temporarily deselect
         pm.select(d=True)
         pm.setAttr("defaultRenderGlobals.imageFormat", 8)  # This is the value for jpeg
@@ -234,8 +243,8 @@ class assetLibrary(dict):
             pm.uvSnapshot(o=True, ff="jpg", n=UVpath, xr=1600, yr=1600)
 
 
-        pm.isolateSelect(currentPanel, state=0)
-        pm.isolateSelect(currentPanel, removeSelected = True)
+        pm.isolateSelect(panel, state=0)
+        pm.isolateSelect(panel, removeSelected = True)
 
         # TODO // store the scene defaults (camera position, imageFormat, etc.
 
