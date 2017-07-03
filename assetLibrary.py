@@ -158,6 +158,8 @@ class assetLibrary(dict):
         self.clear()
         # first collect all the json files from second level subfolders
         subDirs = next(os.walk(directory))[1]
+
+        # subDirs= (subDirs.sort())
         allJson = []
         for d in subDirs:
             dir = os.path.join(directory, d)
@@ -173,7 +175,6 @@ class assetLibrary(dict):
                         name = data["assetName"]
                         self[name] = data
 
-
         # print allJson
         # self[assetName] = "HEDE"
         # self[assetName] = data
@@ -183,12 +184,34 @@ class assetLibrary(dict):
         #         data = json.load(f)
 
     def importAsset(self, name):
-        # print "HERE"
         path = self[name]['maPath']
+        textureList = self[name]['textureFiles']
         # print path
-        # We tell the file command to import, and tell it to not use any nameSpaces
-        # pm.file(path, i=True, usingNamespaces=False)
         pm.importFile(path)
+
+        ## if there are not textures files to handle, do not waste time
+        if len(textureList) == 0:
+            return
+
+        currentProjectPath = os.path.normpath(pm.workspace.path)
+        sourceImagesPath =  os.path.join(currentProjectPath, "sourceimages")
+        ## check if the sourceimages folder exists:
+        if not os.path.exists(sourceImagesPath):
+            os.mkdir(sourceImagesPath)
+
+        fileNodes = pm.ls(type="file")
+        for path in textureList:
+            ## find the textures file Node
+            for file in fileNodes:
+                if os.path.normpath(pm.getAttr(file.fileTextureName)) == path:
+                    filePath, fileBase = os.path.split(path)
+                    newLocation = os.path.join(sourceImagesPath, name)
+                    if not os.path.exists(newLocation):
+                        os.mkdir(newLocation)
+                    newPath = os.path.join(newLocation, fileBase)
+                    copyfile(path, newPath)
+                    pm.setAttr(file.fileTextureName, newPath)
+
 
     def previewSaver(self, name, assetDirectory):
         sel = pm.ls(sl=True)
@@ -249,6 +272,9 @@ class assetLibrary(dict):
         # TODO // store the scene defaults (camera position, imageFormat, etc.
 
         return thumbPath
+
+    def fileReplacer(self, oldLocation, newLocation):
+        pass
 
 
 class ControllerLibraryUI(QtWidgets.QDialog):
@@ -370,34 +396,11 @@ class ControllerLibraryUI(QtWidgets.QDialog):
         # Then we tell our library to load it
         self.library.importAsset(name)
 
-    # def filter(self):
-    #     filterWord = self.saveNameField.text()
-    #     self.listWidget.clear()
-    #     self.library.scan()
-
-    def save(self):
-        # We start off by getting the name in the text field
-        name = self.searchNameField.text()
-
-        # If the name is not given, then we will not continue and we'll warn the user
-        # The strip method will remove empty characters from the string, so that if the user entered spaces, it won't be valid
-        if not name.strip():
-            pm.warning("You must give a name!")
-            return
-
-        # We use our library to save with the given name
-        self.library.saveAsset(name)
-        # Then we repopulate our UI with the new data
-        self.populate()
-        # And finally, lets remove the text in the name field so that they don't accidentally overwrite the file
-        self.searchNameField.setText('')
 
     def populate(self):
 
         # use the word in saveNameField as the filter
         filterWord = self.searchNameField.text()
-
-
 
         # This function will be used to populate the UI. Shocking. I know.
 
@@ -408,12 +411,12 @@ class ControllerLibraryUI(QtWidgets.QDialog):
         self.library.scan()
         # Now we iterate through the dictionary
         # This is why I based our library on a dictionary, because it gives us all the nice tricks a dictionary has
-        for name, info in self.library.items():
+
+        for name, info in sorted(self.library.items()):
 
             # if there is a filterword, filter the item
             if filterWord != "" and filterWord not in name:
                 continue
-
 
             # We create an item for the list widget and tell it to have our controller name as a label
             item = QtWidgets.QListWidgetItem(name)
