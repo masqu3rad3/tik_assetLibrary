@@ -327,6 +327,7 @@ class ControllerLibraryUI(QtWidgets.QDialog):
         btnLayout.addWidget(refreshBtn)
 
         exportBtn = QtWidgets.QPushButton('Export')
+        # exportBtn.clicked.connect(self.save)
         exportBtn.clicked.connect(self.export)
         btnLayout.addWidget(exportBtn)
 
@@ -334,10 +335,18 @@ class ControllerLibraryUI(QtWidgets.QDialog):
         self.populate()
 
     def export(self):
-        self.exportWindow = QtWidgets.QDialog()
-        self.exportWindow.setWindowTitle('hoyt')
-        self.exportWindow.resize(200,150)
-        self.exportWindow.show()
+        # self.exportWindow = QtWidgets.QDialog()
+        # self.exportWindow.setWindowTitle('hoyt')
+        # self.exportWindow.resize(200,150)
+        exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog', 'Enter Asset Name:')
+        if ok:
+            name = str(exportWindow)
+            if not name.strip():
+                pm.warning("You must give a name!")
+                return
+            self.library.saveAsset(name)
+            self.populate()
+        # self.exportWindow.show()
 
     def load(self):
         # We will ask the listWidget what our currentItem is
