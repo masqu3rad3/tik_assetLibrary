@@ -253,7 +253,7 @@ class ControllerLibraryUI(QtWidgets.QDialog):
         super(ControllerLibraryUI, self).__init__()
 
         # We set our window title
-        self.setWindowTitle('Controller Library UI')
+        self.setWindowTitle('Asset Library UI')
 
         # We store our library as a variable that we can access from inside us
         self.library = assetLibrary()
@@ -276,19 +276,20 @@ class ControllerLibraryUI(QtWidgets.QDialog):
 
         # Our first order of business is to have a text box that we can enter a name
         # In Qt this is called a LineEdit
-        self.saveNameField = QtWidgets.QLineEdit()
+        self.searchNameField = QtWidgets.QLineEdit()
         # We will then add this to our layout for our save controls
-        saveLayout.addWidget(self.saveNameField)
+        self.searchNameField.textEdited.connect(self.populate)
+        saveLayout.addWidget(self.searchNameField)
 
-        # We add a button to call the save command
-        saveBtn = QtWidgets.QPushButton('Save')
-        # When the button is clicked it fires a signal
-        # A signal can be connected to a function
-        # So when the button is called, it will call the function that is given.
-        # In this case, we tell it to call the save method
-        saveBtn.clicked.connect(self.save)
-        # and then we add it to our save layout
-        saveLayout.addWidget(saveBtn)
+        # # We add a button to call the save command
+        # saveBtn = QtWidgets.QPushButton('Save')
+        # # When the button is clicked it fires a signal
+        # # A signal can be connected to a function
+        # # So when the button is called, it will call the function that is given.
+        # # In this case, we tell it to call the save method
+        # saveBtn.clicked.connect(self.save)
+        # # and then we add it to our save layout
+        # saveLayout.addWidget(saveBtn)
 
         # Now we'll set up the list of all our items
         # The size is for the size of the icons we will display
@@ -325,12 +326,18 @@ class ControllerLibraryUI(QtWidgets.QDialog):
         refreshBtn.clicked.connect(self.populate)
         btnLayout.addWidget(refreshBtn)
 
-        closeBtn = QtWidgets.QPushButton('Close')
-        closeBtn.clicked.connect(self.close)
-        btnLayout.addWidget(closeBtn)
+        exportBtn = QtWidgets.QPushButton('Export')
+        exportBtn.clicked.connect(self.export)
+        btnLayout.addWidget(exportBtn)
 
         # After all that, we'll populate our UI
         self.populate()
+
+    def export(self):
+        self.exportWindow = QtWidgets.QDialog()
+        self.exportWindow.setWindowTitle('hoyt')
+        self.exportWindow.resize(200,150)
+        self.exportWindow.show()
 
     def load(self):
         # We will ask the listWidget what our currentItem is
@@ -345,9 +352,14 @@ class ControllerLibraryUI(QtWidgets.QDialog):
         # Then we tell our library to load it
         self.library.importAsset(name)
 
+    # def filter(self):
+    #     filterWord = self.saveNameField.text()
+    #     self.listWidget.clear()
+    #     self.library.scan()
+
     def save(self):
         # We start off by getting the name in the text field
-        name = self.saveNameField.text()
+        name = self.searchNameField.text()
 
         # If the name is not given, then we will not continue and we'll warn the user
         # The strip method will remove empty characters from the string, so that if the user entered spaces, it won't be valid
@@ -360,9 +372,15 @@ class ControllerLibraryUI(QtWidgets.QDialog):
         # Then we repopulate our UI with the new data
         self.populate()
         # And finally, lets remove the text in the name field so that they don't accidentally overwrite the file
-        self.saveNameField.setText('')
+        self.searchNameField.setText('')
 
     def populate(self):
+
+        # use the word in saveNameField as the filter
+        filterWord = self.searchNameField.text()
+
+
+
         # This function will be used to populate the UI. Shocking. I know.
 
         # First lets clear all the items that are in the list to start fresh
@@ -370,10 +388,15 @@ class ControllerLibraryUI(QtWidgets.QDialog):
 
         # Then we ask our library to find everything again in case things changed
         self.library.scan()
-        print "tems", self.library.items()
         # Now we iterate through the dictionary
         # This is why I based our library on a dictionary, because it gives us all the nice tricks a dictionary has
         for name, info in self.library.items():
+
+            # if there is a filterword, filter the item
+            if filterWord != "" and filterWord not in name:
+                continue
+
+
             # We create an item for the list widget and tell it to have our controller name as a label
             item = QtWidgets.QListWidgetItem(name)
 
