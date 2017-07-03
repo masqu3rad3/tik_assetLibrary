@@ -28,104 +28,55 @@ class assetLibrary(dict):
 
     def saveAsset(self, assetName, screenshot=True, directory=DIRECTORY, moveCenter=True, **info):
 
+        # Save scene as to prevent fatal problems
+        originalPath = pm.sceneName()
+        if not originalPath == "":
+            sceneFolder, sceneName = os.path.split(originalPath)
+            sceneNameBase, sceneNameExt = os.path.splitext(sceneName)
+            newSceneName = "{0}{1}{2}".format(sceneNameBase, "_TMP", sceneNameExt)
+            newScenePath = os.path.join(sceneFolder, newSceneName)
+            pm.saveAs(newScenePath)
+
         assetDirectory = os.path.join(directory,assetName)
         print "assetDirectory", assetDirectory
 
+
+        ## TODO // in a scenario where a group object selected, select all meshes under the group recursively (you did that before somewhere else)
         selection = pm.ls(sl=True, type="transform")
         if len(selection) == 0:
+            pm.warning("No object selected, nothing to do")
             return
 
         if not os.path.exists(assetDirectory):
             os.mkdir(assetDirectory)
 
-        materialList=[]
-        dupMaterialList=[]
-        dupSgList=[]
-        dupObjList=[]
-        fileTextures=[]
+        # fileTextures=[]
 
-        # TODO // Duplicate the shading network of selected object.
         for obj in selection:
-            # TODO // Duplicate each selected object with the option of current state or non-deformed state
-            # TODO // zero out deformer and skin bind envelopes for each object (optional)
-            # TODO // duplicate and unlock the transformations if locked
-            dupObj = pm.duplicate(obj)
-            dupObjList.append(dupObj)
-            objSG = obj.shadingGroups()
+            objSG = obj.shadingGroups()[0]
+            objMaterial = pm.ls(pm.listConnections(objSG), materials=True)
+            fileNodes=pm.listConnections(objMaterial, type="file")
+            fileTextures = self.filePass(fileNodes, assetDirectory)
 
-            # if there is no shading group, skip the iteration
-            if objSG == []:
-                continue
-            objMaterial = pm.ls(pm.listConnections(objSG[0]),materials=True)
-
-            ## if this material is not before duplicated:
-            if not objMaterial in materialList:
-
-                # find the file nodes used
-                print objMaterial
-                if objMaterial[0] == "lambert1":
-                    continue # if it is the default material, skip that
-                dupMaterial=pm.duplicate(objMaterial, ic=True)
-                sg = pm.sets(renderable=1, noSurfaceShader=1, empty=1, name=dupMaterial[0] + '_SG')
-                pm.connectAttr(dupMaterial[0] + ".outColor", sg + ".surfaceShader", force=1)
-                fileNodes=pm.listConnections(dupMaterial, type="file")
-                    # copy the files in filenode to the asset directory
-
-                for file in fileNodes:
-                    fullPath = os.path.normpath(pm.getAttr(file.fileTextureName))
-                    filePath, fileBase = os.path.split(fullPath)
-                    newLocation = os.path.join(assetDirectory, fileBase)
-
-                    if fullPath == newLocation:
-                        print "File Node copy skipped"
-                        continue
-                    # print "PATHS", fullPath, newLocation
-                    copyfile(fullPath, newLocation)
-
-                    pm.setAttr(file.fileTextureName,newLocation)
-                    fileTextures.append(newLocation)
-
-                materialList.append(objMaterial)
-                dupMaterialList.append(dupMaterial)
-                dupSgList.append(sg)
-            ## if the same material is used before do not duplicate it again, use the previous one.
-            else:
-                materialIndex = materialList.index(objMaterial)
-                dupMaterial = dupMaterialList[materialIndex]
-
-
-            # testBlinn = pm.shadingNode('blinn', asShader=True)
-            pm.select(dupObj)
-            # pm.hyperShade(assign=dupMaterial)
-            # pm.sets(dupMaterial, forceElement=True)
-
-
-            pm.hyperShade(assign=dupMaterial[0])
-
-        if moveCenter:
-            pm.select(dupObjList)
-            slGrp = pm.group(name=assetName)
-
-            pm.xform(slGrp, cp=True)
-
-            tempLoc = pm.spaceLocator()
-            tempPo = pm.pointConstraint(tempLoc, slGrp)
-            pm.delete(tempPo)
-            pm.delete(tempLoc)
-
-        pm.select(dupObjList)
-
+        for obj in selection:
+            objSG = obj.shadingGroups()[0]
+            objMaterial = pm.ls(pm.listConnections(objSG), materials=True)
+        # if moveCenter:
+        #     pm.select(selection)
+        #     slGrp = pm.group(name=assetName)
+        #
+        #     pm.xform(slGrp, cp=True)
+        #
+        #     tempLoc = pm.spaceLocator()
+        #     tempPo = pm.pointConstraint(tempLoc, slGrp)
+        #     pm.delete(tempPo)
+        #     pm.delete(tempLoc)
+        #
         ssPath = self.previewSaver(assetName, assetDirectory)
 
+        pm.select(selection)
         objName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="OBJexport", force=True, options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True, es=True)
         maName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="mayaAscii")
-
-        print "objName", objName
-        print "maName", maName
-        ## Clean the dups
-        pm.delete(slGrp)
-        pm.delete(dupMaterialList)
-        pm.delete(dupSgList)
 
         ## Json stuff
 
@@ -134,6 +85,14 @@ class assetLibrary(dict):
         info['maPath'] = maName
         info['ssPath'] = ssPath
         info['textureFiles'] = fileTextures
+        info['Faces/Trianges'] = ("%s/%s" %(str(pm.polyEvaluate(f=True)),str(pm.polyEvaluate(t=True))))
+
+        # query the number of faces
+        pm.polyEvaluate(f=True)
+        # Result: 16
+
+        # query the number of triangles
+        pm.polyEvaluate(t=True)
 
         propFile = os.path.join(assetDirectory, "%s.json" % assetName)
 
@@ -151,6 +110,11 @@ class assetLibrary(dict):
         # TODO // Delete the duplicated object and its dup shading network
 
         self[assetName] = info
+
+        ## TODO // REVERT BACK
+        if not originalPath == "":
+            pm.openFile(originalPath, force=True)
+            os.remove(newScenePath)
 
     def scan(self, directory=DIRECTORY):
         if not os.path.exists(directory):
@@ -243,19 +207,20 @@ class assetLibrary(dict):
         pm.select(d=True)
         pm.setAttr("defaultRenderGlobals.imageFormat", 8)  # This is the value for jpeg
 
+        frame = pm.currentTime(query=True)
         # thumb
         pm.playblast(completeFilename=thumbPath, forceOverwrite=True, format='image', width=200, height=200,
-                       showOrnaments=False, startTime=1, endTime=1, viewer=False)
+                       showOrnaments=False, frame=[frame], viewer=False)
 
         # screenshot
         pm.playblast(completeFilename=SSpath, forceOverwrite=True, format='image', width=1600, height=1600,
-                       showOrnaments=False, startTime=1, endTime=1, viewer=False)
+                       showOrnaments=False, frame=[frame], viewer=False)
 
         # Wireframe
         pm.modelEditor(panel, e=1, displayTextures=0)
         pm.modelEditor(panel, e=1, wireframeOnShaded=1)
         pm.playblast(completeFilename=WFpath, forceOverwrite=True, format='image', width=1600, height=1600,
-                       showOrnaments=False, startTime=1, endTime=1, viewer=False)
+                       showOrnaments=False, frame=[frame], viewer=False)
 
         pm.select(sel)
         # UV Snapshot -- It needs
@@ -273,8 +238,25 @@ class assetLibrary(dict):
 
         return thumbPath
 
-    def fileReplacer(self, oldLocation, newLocation):
-        pass
+    def filePass (self, fileNodes, newPath):
+        textures=[]
+        for file in fileNodes:
+            print "HERE", file
+            fullPath = os.path.normpath(pm.getAttr(file.fileTextureName))
+            filePath, fileBase = os.path.split(fullPath)
+            newLocation = os.path.join(newPath, fileBase)
+
+            if fullPath == newLocation:
+                print "File Node copy skipped"
+                continue
+            # print "PATHS", fullPath, newLocation
+            copyfile(fullPath, newLocation)
+            pm.setAttr(file.fileTextureName, newLocation)
+            textures.append(newLocation)
+            print "newLoc", newLocation
+            print "textures", textures
+        return textures
+
 
 
 class ControllerLibraryUI(QtWidgets.QDialog):
@@ -373,7 +355,7 @@ class ControllerLibraryUI(QtWidgets.QDialog):
         # self.exportWindow = QtWidgets.QDialog()
         # self.exportWindow.setWindowTitle('hoyt')
         # self.exportWindow.resize(200,150)
-        exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog', 'Enter Asset Name:')
+        exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog', 'SAVE BEFORE PROCEED\n\nANY UNSAVED WORK WILL BE LOST\n\nEnter Asset Name:')
         if ok:
             name = str(exportWindow)
             if not name.strip():
