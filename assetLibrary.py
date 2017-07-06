@@ -73,7 +73,6 @@ class assetLibrary(dict):
             pm.saveAs(newScenePath)
 
         assetDirectory = os.path.join(directory, assetName)
-        print "assetDirectory", assetDirectory
 
         ## TODO // in a scenario where a group object selected, select all meshes under the group recursively (you did that before somewhere else)
         selection = pm.ls(sl=True, type="transform")
@@ -88,7 +87,6 @@ class assetLibrary(dict):
         for obj in selection:
             fileNodes = self.findFileNodes(obj)
             fileTextures = self.filePass(fileNodes, assetDirectory)
-            print "ANAN", fileTextures
             allFileTextures += fileTextures
 
 
@@ -178,11 +176,9 @@ class assetLibrary(dict):
                     with open(file, 'r') as f:
                         # The JSON module will read our file, and convert it to a python dictionary
                         data = json.load(f)
-                        print data
                         name = data["assetName"]
                         self[name] = data
 
-                        # print allJson
                         # self[assetName] = "HEDE"
                         # self[assetName] = data
                         # for j in allJson:
@@ -204,7 +200,6 @@ class assetLibrary(dict):
         """
         path = self[name]['maPath']
         textureList = self[name]['textureFiles']
-        # print path
         pm.importFile(path)
 
         ## if there are not textures files to handle, do not waste time
@@ -306,13 +301,9 @@ class assetLibrary(dict):
             fullPath = os.path.normpath(pm.getAttr(file.fileTextureName))
             filePath, fileBase = os.path.split(fullPath)
             newLocation = os.path.join(newPath, fileBase)
-            print "FILE", file
-            print "FULL_PATH", fullPath
-            print "NEW_LOCATION", newLocation
             if fullPath == newLocation:
-                print "File Node copy skipped"
+                pm.warning("File Node copy skipped")
                 continue
-            # print "PATHS", fullPath, newLocation
             copyfile(fullPath, newLocation)
             pm.setAttr(file.fileTextureName, newLocation)
             textures.append(newLocation)
@@ -337,8 +328,6 @@ class assetLibrary(dict):
         iterCount = 0
         while nextInputs != []:
             iterCount += 1
-            # print "Iteration", iterCount
-            # print "nextInputs", nextInputs
             everyInput += nextInputs
             tempInputs = []
             for i in nextInputs:
@@ -533,7 +522,6 @@ class AssetLibraryUI(QtWidgets.QDialog):
         if item == 'openFolder':
             maPath = info.get('maPath')
             path, base = os.path.split(maPath)
-            print path
             # os.system('start %s' %path)
             os.startfile(path)
         elif item == 'importWithCopy':
@@ -542,7 +530,6 @@ class AssetLibraryUI(QtWidgets.QDialog):
             self.load(False)
         elif item == 'viewModeChange':
             self.viewModeState = self.viewModeState * -1
-            print self.viewModeState
             if self.viewModeState == 1:
                 self.viewAsListAction.setText("View As List")
                 self.listWidget.setViewMode(QtWidgets.QListWidget.IconMode)
