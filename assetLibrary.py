@@ -89,6 +89,7 @@ class assetLibrary(dict):
             fileTextures = self.filePass(fileNodes, assetDirectory)
             allFileTextures += fileTextures
 
+        allFileTextures = self.makeUnique(allFileTextures)
 
         if moveCenter:
             pm.select(selection)
@@ -144,9 +145,9 @@ class assetLibrary(dict):
         self[assetName] = info
 
         ## TODO // REVERT BACK
-        if not originalPath == "":
-            pm.openFile(originalPath, force=True)
-            os.remove(newScenePath)
+        # if not originalPath == "":
+        #     pm.openFile(originalPath, force=True)
+        #     os.remove(newScenePath)
 
     def scan(self, directory=DIRECTORY):
         """
@@ -303,17 +304,15 @@ class assetLibrary(dict):
             newLocation = os.path.join(newPath, fileBase)
             if fullPath == newLocation:
                 pm.warning("File Node copy skipped")
+                textures.append(newLocation)
                 continue
             copyfile(fullPath, newLocation)
             pm.setAttr(file.fileTextureName, newLocation)
             textures.append(newLocation)
         return textures
+
     def findFileNodes(self, obj):
-        def makeUnique(fList):
-            keys = {}
-            for e in fList:
-                keys[e] = 1
-            return keys.keys()
+
         def checkInputs(node):
             inputNodes = node.inputs()
             if len(inputNodes) == 0:
@@ -333,9 +332,42 @@ class assetLibrary(dict):
             for i in nextInputs:
                 tempInputs += checkInputs(i)
             nextInputs = tempInputs
-        everyInput = makeUnique(everyInput)
+        everyInput = self.makeUnique(everyInput)
         fileNodes = pm.ls(everyInput, type="file")
         return fileNodes
+
+    def makeUnique(self, fList):
+        keys = {}
+        for e in fList:
+            keys[e] = 1
+        return keys.keys()
+
+    def pathOps(self, fullPath, mode):
+        """
+        performs basic path operations.
+        Args:
+            fullPath: (Unicode) Absolute Path
+            mode: (String) Valid modes are 'path', 'basename', 'filename', 'extension', 'drive'
+
+        Returns:
+            Unicode
+
+        """
+        if mode == "drive":
+            drive = os.path.splitdrive(fullPath)
+            return drive
+
+        path, basename = os.path.split(fullPath)
+        if mode == "path":
+            return path
+        if mode == "basename":
+            return basename
+        filename, ext = os.path.splitext(basename)
+        if mode == "filename":
+            return filename
+        if mode == "extension":
+            return ext
+
 
 
 def getMayaMainWindow():
@@ -356,24 +388,42 @@ class AssetLibraryUI(QtWidgets.QDialog):
     UI Class for Asset Library
     """
     viewModeState = 1
+    _instance = None
+    # def __new__ (cls, force = False):
+    #      if not force and AssetLibraryUI._instance:
+    #          return AssetLibraryUI._instance
+    #      AssetLibraryUI._instance = super (AssetLibraryUI, cls).__new__ (cls)
+    #      return AssetLibraryUI._instance
+
     def __init__(self):
+
+
         # super is an interesting function
         # It gets the class that our class is inheriting from
         # This is called the superclass
         # The reason is that because we redefined __init__ in our class, we no longer call the code in the super's init
         # So we need to call our super's init to make sure we are initialized like it wants us to be
+        # me=self
+        for entry in QtWidgets.QApplication.allWidgets():
+            if entry.objectName() == "assetLib":
+                # print entry
+                entry.close()
+
         parent = getMayaMainWindow()
 
         super(AssetLibraryUI, self).__init__(parent=parent)
 
         # We set our window title
         self.setWindowTitle('Asset Library UI')
+        self.setObjectName("assetLib")
 
         # We store our library as a variable that we can access from inside us
         self.library = assetLibrary()
 
         # Finally we build our UI
+
         self.buildUI()
+
 
     def buildUI(self):
         """
@@ -393,7 +443,7 @@ class AssetLibraryUI(QtWidgets.QDialog):
 
         # Our first order of business is to have a text box that we can enter a name
         # In Qt this is called a LineEdit
-        self.searchLabel = QtWidgets.QLabel("Seach Filter ")
+        self.searchLabel = QtWidgets.QLabel("Seach Filter: ")
         searchLayout.addWidget(self.searchLabel)
         self.searchNameField = QtWidgets.QLineEdit()
         # We will then add this to our layout for our save controls
@@ -422,9 +472,7 @@ class AssetLibraryUI(QtWidgets.QDialog):
         self.listWidget.setIconSize(QtCore.QSize(self.size, self.size))
         # self.listWidget.setSortingEnabled(True)
         self.listWidget.setMovement(QtWidgets.QListView.Static)
-        # then we set it to adjust its position when we resize the window
         self.listWidget.setResizeMode(QtWidgets.QListWidget.Adjust)
-        # Finally we set the grid size to be just a little larger than our icons to store our text label too
         self.listWidget.setGridSize(QtCore.QSize(self.size *1.2, self.size *1.4))
         # And finally, finally, we add it to our main layout
         layout.addWidget(self.listWidget)
