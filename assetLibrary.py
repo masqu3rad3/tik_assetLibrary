@@ -63,14 +63,14 @@ class assetLibrary(dict):
             None
 
         """
-        # Save scene as to prevent fatal problems
         originalPath = pm.sceneName()
-        if not originalPath == "":
-            sceneFolder, sceneName = os.path.split(originalPath)
-            sceneNameBase, sceneNameExt = os.path.splitext(sceneName)
-            newSceneName = "{0}{1}{2}".format(sceneNameBase, "_TMP", sceneNameExt)
-            newScenePath = os.path.join(sceneFolder, newSceneName)
-            pm.saveAs(newScenePath)
+        # Save scene as to prevent fatal problems
+        # if not originalPath == "":
+        #     sceneFolder, sceneName = os.path.split(originalPath)
+        #     sceneNameBase, sceneNameExt = os.path.splitext(sceneName)
+        #     newSceneName = "{0}{1}{2}".format(sceneNameBase, "_TMP", sceneNameExt)
+        #     newScenePath = os.path.join(sceneFolder, newSceneName)
+        #     pm.saveAs(newScenePath)
 
         assetDirectory = os.path.join(directory, assetName)
 
@@ -112,13 +112,14 @@ class assetLibrary(dict):
         ## Json stuff
 
         info['assetName'] = assetName
-        info['objPath'] = objName
-        info['maPath'] = maName
-        info['thumbPath'] = thumbPath
-        info['ssPath'] = ssPath
-        info['swPath'] = swPath
+        info['objPath'] = self.pathOps(objName, "basename")
+        info['maPath'] = self.pathOps(maName, "basename")
+        info['thumbPath'] = self.pathOps(thumbPath, "basename")
+        info['ssPath'] = self.pathOps(ssPath, "basename")
+        info['swPath'] = self.pathOps(swPath, "basename")
         info['textureFiles'] = allFileTextures
         info['Faces/Trianges'] = ("%s/%s" % (str(pm.polyEvaluate(f=True)), str(pm.polyEvaluate(t=True))))
+        info['sourceProject'] = originalPath
 
         # query the number of faces
         pm.polyEvaluate(f=True)
@@ -187,7 +188,7 @@ class assetLibrary(dict):
                         #         # The JSON module will read our file, and convert it to a python dictionary
                         #         data = json.load(f)
 
-    def importAsset(self, name, copyTextures):
+    def importAsset(self, name, copyTextures, directory=DIRECTORY):
         """
         Imports the selected asset into the current scene
         
@@ -199,7 +200,8 @@ class assetLibrary(dict):
             None
 
         """
-        path = self[name]['maPath']
+        path = os.path.join(directory, self[name]['assetName'], self[name]['maPath'])
+
         textureList = self[name]['textureFiles']
         pm.importFile(path)
 
@@ -214,7 +216,8 @@ class assetLibrary(dict):
             os.mkdir(sourceImagesPath)
 
         fileNodes = pm.ls(type="file")
-        for path in textureList:
+        for texture in textureList:
+            path = os.path.join(directory, self[name]['assetName'], texture)
             ## find the textures file Node
             for file in fileNodes:
                 if os.path.normpath(pm.getAttr(file.fileTextureName)) == path:
@@ -222,7 +225,9 @@ class assetLibrary(dict):
                     newLocation = os.path.join(sourceImagesPath, name)
                     if not os.path.exists(newLocation):
                         os.mkdir(newLocation)
-                    newPath = os.path.join(newLocation, fileBase)
+                    newPath = os.path.normpath(os.path.join(newLocation, fileBase))
+                    print "path", path
+                    print "newPath", newPath
                     copyfile(path, newPath)
                     pm.setAttr(file.fileTextureName, newPath)
 
@@ -304,11 +309,13 @@ class assetLibrary(dict):
             newLocation = os.path.join(newPath, fileBase)
             if fullPath == newLocation:
                 pm.warning("File Node copy skipped")
-                textures.append(newLocation)
+                textureName = self.pathOps(newLocation, "basename")
+                textures.append(textureName)
                 continue
             copyfile(fullPath, newLocation)
             pm.setAttr(file.fileTextureName, newLocation)
-            textures.append(newLocation)
+            textureName = self.pathOps(newLocation, "basename")
+            textures.append(textureName)
         return textures
 
     def findFileNodes(self, obj):
@@ -322,11 +329,12 @@ class assetLibrary(dict):
         geo = obj.getShape()
         # Get the shading group from the selected mesh
         sg = geo.outputs(type='shadingEngine')[0]
+        objMaterial = pm.ls(pm.listConnections(sg), materials=True)
         everyInput = []
-        nextInputs = checkInputs(sg)
-        iterCount = 0
+        nextInputs = objMaterial
+        # iterCount = 0
         while nextInputs != []:
-            iterCount += 1
+            # iterCount += 1
             everyInput += nextInputs
             tempInputs = []
             for i in nextInputs:
@@ -388,6 +396,7 @@ class AssetLibraryUI(QtWidgets.QDialog):
     UI Class for Asset Library
     """
     viewModeState = 1
+    directory = DIRECTORY
     _instance = None
     # def __new__ (cls, force = False):
     #      if not force and AssetLibraryUI._instance:
@@ -568,9 +577,8 @@ class AssetLibraryUI(QtWidgets.QDialog):
         info = self.library[name]
 
         if item == 'openFolder':
-            maPath = info.get('maPath')
-            path, base = os.path.split(maPath)
-            # os.system('start %s' %path)
+            asset = info.get('assetName')
+            path = os.path.join(self.directory, asset)
             os.startfile(path)
         elif item == 'importWithCopy':
             self.load(True)
@@ -586,7 +594,9 @@ class AssetLibraryUI(QtWidgets.QDialog):
                 self.listWidget.setViewMode(QtWidgets.QListWidget.ListMode)
         else:
             ss = info.get(item)
-            os.startfile(ss)
+            asset = info.get('assetName')
+            ssPath = os.path.join(self.directory, asset, ss)
+            os.startfile(ssPath)
 
     def on_context_menu(self, point):
         # show context menu
@@ -658,11 +668,13 @@ class AssetLibraryUI(QtWidgets.QDialog):
             item.setToolTip(pprint.pformat(info))
 
             # Finally we check if there's a screenshot available
-            screenshot = info.get('thumbPath')
+            thumb = info.get('thumbPath')
+            asset = info.get('assetName')
+            thumbPath = os.path.join(self.directory, asset, thumb)
             # If there is, then we will load it
-            if screenshot:
+            if thumb:
                 # So first we make an icon with the path to our screenshot
-                icon = QtGui.QIcon(screenshot)
+                icon = QtGui.QIcon(thumbPath)
                 # then we set the icon onto our item
                 item.setIcon(icon)
 
