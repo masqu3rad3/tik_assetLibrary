@@ -83,8 +83,10 @@ class assetLibrary(dict):
         if not os.path.exists(assetDirectory):
             os.mkdir(assetDirectory)
 
+        possibleFileHolders = pm.listRelatives(selection, ad=True, type=["mesh", "nurbsSurface"])
+
         allFileTextures = []
-        for obj in selection:
+        for obj in possibleFileHolders:
             fileNodes = self.findFileNodes(obj)
             fileTextures = self.filePass(fileNodes, assetDirectory)
             allFileTextures += fileTextures
@@ -242,7 +244,9 @@ class assetLibrary(dict):
             (Tuple) Thumbnail path, Screenshot path, Wireframe path
 
         """
-        sel = pm.ls(sl=True)
+        selection = pm.ls(sl=True)
+
+        validShapes = pm.listRelatives(selection, ad=True, type=["mesh", "nurbsSurface"])
         thumbPath = os.path.join(assetDirectory, '%s_thumb.jpg' % name)
         SSpath = os.path.join(assetDirectory, '%s_s.jpg' % name)
         WFpath = os.path.join(assetDirectory, '%s_w.jpg' % name)
@@ -286,12 +290,15 @@ class assetLibrary(dict):
         pm.playblast(completeFilename=WFpath, forceOverwrite=True, format='image', width=1600, height=1600,
                      showOrnaments=False, frame=[frame], viewer=False)
 
-        pm.select(sel)
+        pm.select(selection)
         # UV Snapshot -- It needs
-        for i in range(0, len(sel)):
-            objName = sel[i].name()
+
+        for i in range(0, len(validShapes)):
+            transformNode = pm.listRelatives(validShapes[i], p=True, type="transform")[0]
+            print "transformNode", transformNode
+            objName = transformNode.name()
             UVpath = os.path.join(assetDirectory, '%s_uv.jpg' % objName)
-            pm.select(sel[i])
+            pm.select(transformNode)
             pm.uvSnapshot(o=True, ff="jpg", n=UVpath, xr=1600, yr=1600)
 
         pm.isolateSelect(panel, state=0)
@@ -318,17 +325,21 @@ class assetLibrary(dict):
             textures.append(textureName)
         return textures
 
-    def findFileNodes(self, obj):
-
+    def findFileNodes(self, shape):
+        print "shape:", shape
         def checkInputs(node):
             inputNodes = node.inputs()
             if len(inputNodes) == 0:
                 return []
             else:
                 return inputNodes
-        geo = obj.getShape()
+        # geo = obj.getShape()
         # Get the shading group from the selected mesh
-        sg = geo.outputs(type='shadingEngine')[0]
+        try:
+            sg = shape.outputs(type='shadingEngine')[0]
+        except:
+            # if there is no sg, return en empty list
+            return []
         objMaterial = pm.ls(pm.listConnections(sg), materials=True)
         everyInput = []
         nextInputs = objMaterial
