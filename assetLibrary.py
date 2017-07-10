@@ -8,9 +8,11 @@ import logging
 from Qt import QtWidgets, QtCore, QtGui
 from maya import OpenMayaUI as omui
 
+
+
 logging.basicConfig()
 logger = logging.getLogger('AssetLibrary')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 if Qt.__binding__ == "PySide":
     logger.debug('Using PySide with shiboken')
@@ -63,6 +65,7 @@ class assetLibrary(dict):
             None
 
         """
+        logger.info("Saving the asset")
         originalPath = pm.sceneName()
         # Save scene as to prevent fatal problems
         # if not originalPath == "":
@@ -111,6 +114,11 @@ class assetLibrary(dict):
                                     options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True, es=True)
         maName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="mayaAscii")
 
+        # selection for poly evaluate
+        pm.select(possibleFileHolders)
+        polyCount = pm.polyEvaluate(f=True)
+        tiangleCount = pm.polyEvaluate(t=True)
+
         ## Json stuff
 
         info['assetName'] = assetName
@@ -120,7 +128,7 @@ class assetLibrary(dict):
         info['ssPath'] = self.pathOps(ssPath, "basename")
         info['swPath'] = self.pathOps(swPath, "basename")
         info['textureFiles'] = allFileTextures
-        info['Faces/Trianges'] = ("%s/%s" % (str(pm.polyEvaluate(f=True)), str(pm.polyEvaluate(t=True))))
+        info['Faces/Trianges'] = ("%s/%s" % (str(polyCount), str(tiangleCount)))
         info['sourceProject'] = originalPath
 
         # query the number of faces
@@ -190,7 +198,7 @@ class assetLibrary(dict):
                         #         # The JSON module will read our file, and convert it to a python dictionary
                         #         data = json.load(f)
 
-    def importAsset(self, name, copyTextures, directory=DIRECTORY):
+    def importAsset(self, name, copyTextures, directory=DIRECTORY, mode="maPath"):
         """
         Imports the selected asset into the current scene
         
@@ -202,7 +210,9 @@ class assetLibrary(dict):
             None
 
         """
-        path = os.path.join(directory, self[name]['assetName'], self[name]['maPath'])
+
+        logger.info("Importing asset")
+        path = os.path.join(directory, self[name]['assetName'], self[name][mode])
 
         textureList = self[name]['textureFiles']
         pm.importFile(path)
@@ -213,6 +223,7 @@ class assetLibrary(dict):
 
         currentProjectPath = os.path.normpath(pm.workspace.path)
         sourceImagesPath = os.path.join(currentProjectPath, "sourceimages")
+        logger.info("Copying Textures to %s" %sourceImagesPath)
         ## check if the sourceimages folder exists:
         if not os.path.exists(sourceImagesPath):
             os.mkdir(sourceImagesPath)
@@ -244,6 +255,7 @@ class assetLibrary(dict):
             (Tuple) Thumbnail path, Screenshot path, Wireframe path
 
         """
+        logger.info("Saving Preview Images")
         selection = pm.ls(sl=True)
 
         validShapes = pm.listRelatives(selection, ad=True, type=["mesh", "nurbsSurface"])
@@ -255,7 +267,7 @@ class assetLibrary(dict):
         panel = pm.getPanel(wf=True)
 
         if pm.getPanel(to=panel) != "modelPanel":
-            pm.warning("The focus is not on a model panel, using the perspective view")
+            logger.warning("The focus is not on a model panel, using the perspective view")
             panel = pm.getPanel(wl="Persp View")
             # Somehot wl dont return a regular string, convert it to a regular string
             t = ""
@@ -292,14 +304,17 @@ class assetLibrary(dict):
 
         pm.select(selection)
         # UV Snapshot -- It needs
-
+        logger.info("Saving UV Snapshots")
         for i in range(0, len(validShapes)):
-            transformNode = pm.listRelatives(validShapes[i], p=True, type="transform")[0]
-            print "transformNode", transformNode
-            objName = transformNode.name()
+            print "validShape", validShapes[i]
+            # transformNode = validShapes[i].getParent()
+            objName = validShapes[i].name()
             UVpath = os.path.join(assetDirectory, '%s_uv.jpg' % objName)
-            pm.select(transformNode)
-            pm.uvSnapshot(o=True, ff="jpg", n=UVpath, xr=1600, yr=1600)
+            pm.select(validShapes[i])
+            try:
+                pm.uvSnapshot(o=True, ff="jpg", n=UVpath, xr=1600, yr=1600)
+            except:
+                logger.warning("UV snapshot is missed for %s" %validShapes[i])
 
         pm.isolateSelect(panel, state=0)
         pm.isolateSelect(panel, removeSelected=True)
@@ -308,18 +323,21 @@ class assetLibrary(dict):
 
         return thumbPath, SSpath, WFpath
 
-    def filePass(self, fileNodes, newPath):
+    def filePass(self, fileNodes, newPath, *args):
         textures = []
         for file in fileNodes:
             fullPath = os.path.normpath(pm.getAttr(file.fileTextureName))
             filePath, fileBase = os.path.split(fullPath)
-            newLocation = os.path.join(newPath, fileBase)
+            newLocation = os.path.normpath(os.path.join(newPath, fileBase))
+
             if fullPath == newLocation:
                 pm.warning("File Node copy skipped")
                 textureName = self.pathOps(newLocation, "basename")
                 textures.append(textureName)
                 continue
+
             copyfile(fullPath, newLocation)
+
             pm.setAttr(file.fileTextureName, newLocation)
             textureName = self.pathOps(newLocation, "basename")
             textures.append(textureName)
@@ -332,7 +350,8 @@ class assetLibrary(dict):
             if len(inputNodes) == 0:
                 return []
             else:
-                return inputNodes
+                filteredNodes = [x for x in inputNodes if x.type() != "renderLayer"]
+                return filteredNodes
         # geo = obj.getShape()
         # Get the shading group from the selected mesh
         try:
@@ -341,10 +360,12 @@ class assetLibrary(dict):
             # if there is no sg, return en empty list
             return []
         objMaterial = pm.ls(pm.listConnections(sg), materials=True)
+        print "objMaterial", objMaterial
         everyInput = []
         nextInputs = objMaterial
         # iterCount = 0
         while nextInputs != []:
+            print "nextInputs", nextInputs
             # iterCount += 1
             everyInput += nextInputs
             tempInputs = []
@@ -514,10 +535,17 @@ class AssetLibraryUI(QtWidgets.QDialog):
         self.popMenu.addAction(importWithCopyAction)
         importWithCopyAction.triggered.connect(lambda item='importWithCopy': self.actionTrigger(item))
 
-        importOnlyAction = QtWidgets.QAction('Import Model', self)
+        importOnlyAction = QtWidgets.QAction('Import Maya File', self)
         self.popMenu.addAction(importOnlyAction)
         importOnlyAction.triggered.connect(lambda item='importOnly': self.actionTrigger(item))
 
+        importObjAction = QtWidgets.QAction('Import Obj', self)
+        self.popMenu.addAction(importObjAction)
+        importObjAction.triggered.connect(lambda item='importObj': self.actionTrigger(item))
+
+        openFileAction = QtWidgets.QAction('Open File', self)
+        self.popMenu.addAction(openFileAction)
+        openFileAction.triggered.connect(lambda item='openFile': self.actionTrigger(item))
         # sUvAction = QtWidgets.QAction('Show UV snapshot', self)
         # self.popMenu.addAction(sUvAction)
         # sUvAction.triggered.connect(lambda item=sUvAction.text(): self.actionTrigger(item))
@@ -592,9 +620,20 @@ class AssetLibraryUI(QtWidgets.QDialog):
             path = os.path.join(self.directory, asset)
             os.startfile(path)
         elif item == 'importWithCopy':
-            self.load(True)
+            self.load(True, mode="maPath")
         elif item == 'importOnly':
-            self.load(False)
+            self.load(False, mode="maPath")
+        elif item == 'importObj':
+            self.load(False, mode="objPath")
+        elif item == 'openFile':
+
+            filename = info.get('maPath')
+            asset = info.get('assetName')
+            filepath = os.path.join(self.directory, asset, filename)
+            pm.openFile(filepath, force=True)
+            # pm.openFile(filepath, o=True)
+            # pm.openFile(filepath)
+
         elif item == 'viewModeChange':
             self.viewModeState = self.viewModeState * -1
             if self.viewModeState == 1:
@@ -603,6 +642,7 @@ class AssetLibraryUI(QtWidgets.QDialog):
             elif self.viewModeState == -1:
                 self.viewAsListAction.setText("View As Icons")
                 self.listWidget.setViewMode(QtWidgets.QListWidget.ListMode)
+
         else:
             ss = info.get(item)
             asset = info.get('assetName')
@@ -630,13 +670,14 @@ class AssetLibraryUI(QtWidgets.QDialog):
             logger.debug(name.strip())
             # assert name.strip() == False, "You must give a name!"
             if not name.strip():
-                pm.warning("You must give a name!")
+                logger.warn("You must give a name!")
                 return
             self.library.saveAsset(name)
             self.populate()
             # self.exportWindow.show()
+            logger.info("Asset Exported")
 
-    def load(self, copy_textures):
+    def load(self, copy_textures, mode="maPath"):
         """
         UI Import Function - links to the assetLibrary.importAsset()
         Returns:
@@ -653,7 +694,7 @@ class AssetLibraryUI(QtWidgets.QDialog):
         # We then get the text label of the current item. This will be the name of our control
         name = currentItem.text()
         # Then we tell our library to load it
-        self.library.importAsset(name, copy_textures)
+        self.library.importAsset(name, copy_textures, mode=mode)
 
     def populate(self):
         """
