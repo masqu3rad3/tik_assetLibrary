@@ -406,7 +406,8 @@ class assetLibrary(dict):
             # if there is no sg, return en empty list
             return []
 
-        everyInput = self.gatherAllinputs(sg)
+        everyInput = pm.listHistory(sg)
+        print "everyInput", everyInput
 
         fileNodes = pm.ls(everyInput, type="file")
         return fileNodes
@@ -417,22 +418,23 @@ class assetLibrary(dict):
             keys[e] = 1
         return keys.keys()
 
-    def gatherAllinputs(self, node):
-        allInputs = []
-        currentInputs = node.inputs()
-
-        while len(allInputs) != len(currentInputs):
-            print "allinputs", len(allInputs)
-            print "currentinputs", len(currentInputs)
-            tempInputs = []
-            for i in currentInputs:
-                tempInputs += i.inputs()
-
-            allInputs = currentInputs
-            currentInputs += tempInputs
-            currentInputs = self.makeUnique(currentInputs)
-            allInputs = self.makeUnique(allInputs)
-        return allInputs
+    # def gatherAllinputs(self, node):
+    #     allInputs = []
+    #     currentInputs = node.inputs()
+    #
+    #     while len(allInputs) != len(currentInputs):
+    #         print "allinputs", allInputs
+    #         print "currentinputs", currentInputs
+    #         tempInputs = []
+    #         for i in currentInputs:
+    #             tempInputs += i.inputs()
+    #             print "temp", tempInputs
+    #
+    #         allInputs = currentInputs
+    #         currentInputs += tempInputs
+    #         currentInputs = self.makeUnique(currentInputs)
+    #         allInputs = self.makeUnique(allInputs)
+    #     return allInputs
 
     def pathOps(self, fullPath, mode):
         """
