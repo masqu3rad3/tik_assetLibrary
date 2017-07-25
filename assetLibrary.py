@@ -506,45 +506,99 @@ class MainUI(QtWidgets.QTabWidget):
 
         self.setWindowTitle("Asset Library")
         self.setObjectName("assetLib")
-
         self.tabDialog()
 
     def tabDialog(self):
 
         # This is the default tab
-        tabA = libraryTab(DIRECTORY)
-        # self.defaultTab = tabA
+        # tabA = libraryTab(DIRECTORY)
 
-        self.addTab(tabA, "Default Library")
-        tabA.setLayout(tabA.layout)
+
+        # first create the libraries defined in the settings file
+        libs = self.loadSettings()
+        for item in libs:
+            name = item[0]
+            path = item[1]
+            preTab = libraryTab(path)
+            self.addTab(preTab, name)
+            preTab.setLayout(preTab.layout)
+        if len(libs) == 0:
+            self.createNewTab()
+
+
+        # self.addTab(tabA, "Default Library")
+        # tabA.setLayout(tabA.layout)
 
         self.addNew = QtWidgets.QWidget()
+        # self.addNew.installEventFilter(self.addNew)
         self.addTab(self.addNew, "+")
+
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        # self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+
+        self.customContextMenuRequested.connect(self.on_context_menu)
+
+        self.tabsRightMenu = QtWidgets.QMenu()
+        removeTabAction = QtWidgets.QAction('Remove Selected Library', self)
+        self.tabsRightMenu.addAction(removeTabAction)
+        removeTabAction.triggered.connect(self.deleteCurrentTab)
 
         self.currentChanged.connect(self.createNewTab)  # changed!
         # self.currentChanged(self.createNewTab)
 
+    def on_context_menu(self, point):
+        # show context menu
+        self.tabsRightMenu.exec_(self.mapToGlobal(point))
+        print (QtWidgets.QApplication.widgetAt(self.mapToGlobal(point)))
+
     def createNewTab(self):
         currentIndex=self.currentIndex()
         totalTabs=self.count()
-        if currentIndex >= (totalTabs-1):
+        if currentIndex >= (totalTabs-1): ## if it is not the last tab (+)
             self.setCurrentIndex(currentIndex-1)
             ## ASK For the new direcory location:
 
             directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Asset Directory", QtCore.QDir.currentPath())
             if directory:
+                tabName = str(os.path.basename(directory))
 
                 self.tabID += 1
                 testTab = libraryTab(directory)
-                self.addTab(testTab, str(os.path.basename(directory)))
+                self.addTab(testTab, tabName)
                 self.tabBar().moveTab(currentIndex, currentIndex+1)
                 self.setCurrentIndex(currentIndex)
-                self.saveSettings()
+                self.saveSettings(tabName, directory)
+                # self.saveSettings()
 
-    def saveSettings(self):
+    def eventFilter(self, QObject, event):
+        if event.type() == QtCore.Event.MouseButtonPress:
+            if event.button() == Qt.RightButton:
+                print("Right button clicked")
+        return False
+
+    def deleteCurrentTab(self):
+
+        currentIndex=self.currentIndex()
+        totalTabs=self.count()
+
+        if currentIndex < (totalTabs): ## if it is not the last tab (+)
+            widget = self.widget(currentIndex)
+            if widget is not None:
+                widget.deleteLater()
+            self.setCurrentIndex(currentIndex - 1)
+            self.removeTab(currentIndex)
+            settingsFile = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assetLibraryConfig.json")
+            libData = self.loadSettings()
+            libData.pop(currentIndex)
+            with open(settingsFile, "w") as f:
+                json.dump(libData, f, indent=4)
+
+
+
+    def saveSettings(self, name, path):
         ## get the file location
         settingsFile = os.path.join(os.path.dirname(os.path.abspath( __file__ )),"assetLibraryConfig.json")
-        print "fileLocation", settingsFile
+        # print "fileLocation", settingsFile
 
         ## Check for the settings file in the location
         # if not os.path.isfile(settingsFile):
@@ -552,32 +606,30 @@ class MainUI(QtWidgets.QTabWidget):
         #     settings={"anan":23, "bacin":38}
         #     with open(settingsFile, "w") as f:
         #         json.dump(settings, f, indent=4)
-
-        allTabs = {"anan": 23, "bacin": 38}
+        currentData = self.loadSettings()
+        allTabs = {}
+        ## gather all tabs
+        currentData.append([name, path])
         with open(settingsFile, "w") as f:
-            json.dump(allTabs, f, indent=4)
+            json.dump(currentData, f, indent=4)
 
 
         ## write the settings to the .json file
 
     def loadSettings(self):
         ## get the file location
-
+        settingsFile = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assetLibraryConfig.json")
         ## check for the settings file in the location
+        if os.path.isfile(settingsFile):
+            with open(settingsFile, 'r') as f:
+                # The JSON module will read our file, and convert it to a python dictionary
+                data = json.load(f)
+                return data
+        else:
+            return []
 
-        ## if there is no setting file create one and write default settings
-
-        with open(file, 'r') as f:
-            # The JSON module will read our file, and convert it to a python dictionary
-            data = json.load(f)
-            name = data["assetName"]
-            self[name] = data
-
-        pass
 
 class libraryTab(QtWidgets.QWidget):
-
-    # directory = DIRECTORY
 
     def __init__(self, directory):
         self.directory = directory
@@ -597,18 +649,9 @@ class libraryTab(QtWidgets.QWidget):
 
         super(libraryTab, self).__init__()
 
-        # We set our window title
-        # self.setWindowTitle('Asset1')
-        # self.setObjectName("Asset1")
-
-        # We store our library as a variable that we can access from inside us
         self.library = assetLibrary(directory)
-
-        # Finally we build our UI
-
         self.buildTabUI()
 
-        # self.setLayout(layout)
 
     def buildTabUI(self):
 
