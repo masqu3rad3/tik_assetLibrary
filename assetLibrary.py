@@ -93,11 +93,12 @@ class assetLibrary(dict):
     ##### TEMPORARY #####
     # assetName = "test"
 
-    def __init__(self, directory=DIRECTORY):
+    def __init__(self, directory):
+        self.directory=directory
         if not os.path.exists(directory):
             pm.error("Cannot reach the easy access directory")
 
-    def saveAsset(self, assetName, screenshot=True, directory=DIRECTORY, moveCenter=False, **info):
+    def saveAsset(self, assetName, screenshot=True, moveCenter=False, **info):
         """
         Saves the selected object(s) as an asset into the predefined library
         Args:
@@ -121,7 +122,7 @@ class assetLibrary(dict):
         #     newScenePath = os.path.join(sceneFolder, newSceneName)
         #     pm.saveAs(newScenePath)
 
-        assetDirectory = os.path.join(directory, assetName)
+        assetDirectory = os.path.join(self.directory, assetName)
 
         ## TODO // in a scenario where a group object selected, select all meshes under the group recursively (you did that before somewhere else)
         selection = pm.ls(sl=True, type="transform")
@@ -189,16 +190,6 @@ class assetLibrary(dict):
         with open(propFile, "w") as f:
             json.dump(info, f, indent=4)
 
-            # TODO // Save the Screenshots and uv snapshots to the directory
-            # TODO // Write the json file:
-            # TODO // -- Library database name (will be the same with the obj file name)
-            # TODO // -- Polygon count
-            # TODO // -- Texture file (name and/or path)
-            # TODO // -- Screenshot Path
-            # TODO // -- Wireframe SS path
-            # TODO // -- UVsnapShot Path
-        # TODO // Delete the duplicated object and its dup shading network
-
         self[assetName] = info
 
         ## TODO // REVERT BACK
@@ -206,7 +197,7 @@ class assetLibrary(dict):
         #     pm.openFile(originalPath, force=True)
         #     os.remove(newScenePath)
 
-    def scan(self, directory=DIRECTORY):
+    def scan(self):
         """
         Scans the directory for .json files, and gather info.
         Args:
@@ -216,16 +207,16 @@ class assetLibrary(dict):
             None
 
         """
-        if not os.path.exists(directory):
+        if not os.path.exists(self.directory):
             return
         self.clear()
         # first collect all the json files from second level subfolders
-        subDirs = next(os.walk(directory))[1]
+        subDirs = next(os.walk(self.directory))[1]
 
         # subDirs= (subDirs.sort())
         allJson = []
         for d in subDirs:
-            dir = os.path.join(directory, d)
+            dir = os.path.join(self.directory, d)
             for file in os.listdir(dir):
                 if file.endswith(".json"):
                     # assetName, ext = os.path.splitext(file)
@@ -244,7 +235,7 @@ class assetLibrary(dict):
                         #         # The JSON module will read our file, and convert it to a python dictionary
                         #         data = json.load(f)
 
-    def importAsset(self, name, copyTextures, directory=DIRECTORY, mode="maPath"):
+    def importAsset(self, name, copyTextures, mode="maPath"):
         """
         Imports the selected asset into the current scene
         
@@ -258,7 +249,7 @@ class assetLibrary(dict):
         """
 
         logger.info("Importing asset")
-        path = os.path.join(directory, self[name]['assetName'], self[name][mode])
+        path = os.path.join(self.directory, self[name]['assetName'], self[name][mode])
 
         textureList = self[name]['textureFiles']
         pm.importFile(path)
@@ -276,7 +267,7 @@ class assetLibrary(dict):
 
         fileNodes = pm.ls(type="file")
         for texture in textureList:
-            path = os.path.join(directory, self[name]['assetName'], texture)
+            path = os.path.join(self.directory, self[name]['assetName'], texture)
             ## find the textures file Node
             for file in fileNodes:
                 if os.path.normpath(pm.getAttr(file.fileTextureName)) == path:
@@ -401,12 +392,15 @@ class assetLibrary(dict):
         # geo = obj.getShape()
         # Get the shading group from the selected mesh
         try:
-            sg = shape.outputs(type='shadingEngine')[0]
+            sg = shape.outputs(type='shadingEngine')
         except:
             # if there is no sg, return en empty list
             return []
+        everyInput = []
+        for i in sg:
+            everyInput += pm.listHistory(i)
 
-        everyInput = pm.listHistory(sg)
+        everyInput = self.makeUnique(everyInput)
         print "everyInput", everyInput
 
         fileNodes = pm.ls(everyInput, type="file")
@@ -476,22 +470,117 @@ def getMayaMainWindow():
     ptr = wrapInstance(long(win), QtWidgets.QMainWindow)
     return ptr
 
-
-class AssetLibraryUI(QtWidgets.QDialog):
-    """
-    UI Class for Asset Library
-    """
-    viewModeState = 1
-    directory = DIRECTORY
-    _instance = None
-    # def __new__ (cls, force = False):
-    #      if not force and AssetLibraryUI._instance:
-    #          return AssetLibraryUI._instance
-    #      AssetLibraryUI._instance = super (AssetLibraryUI, cls).__new__ (cls)
-    #      return AssetLibraryUI._instance
-
+class bufferUI(QtWidgets.QDialog):
     def __init__(self):
+        # for entry in QtWidgets.QApplication.allWidgets():
+        #     if entry.objectName() == windowName:
+        #         entry.close()
+        parent = getMayaMainWindow()
+        super(bufferUI, self).__init__(parent=parent)
+        self.superLayout = QtWidgets.QVBoxLayout(self)
+        self.setWindowTitle("Asset Library")
+        self.setObjectName("assetLib")
+        self.show()
 
+class MainUI(QtWidgets.QTabWidget):
+    tabID = 0
+    def __init__(self):
+        # for entry in QtWidgets.QApplication.allWidgets():
+        #     if entry.objectName() == windowName:
+        #         entry.close()
+        # parent = getMayaMainWindow()
+        for entry in QtWidgets.QApplication.allWidgets():
+            if entry.objectName() == "assetLib":
+                # print entry
+                entry.close()
+
+        ## I use another QDialog as buffer since Tabs wont work when parented to the Maya Ui.
+        self.buffer=bufferUI()
+        super(MainUI, self).__init__(parent=self.buffer)
+
+        ## This will put the Tab Widget into the buffer layout
+        self.buffer.superLayout.addWidget(self)
+
+        ## This will zero out the margins caused by the bufferUI
+        self.buffer.superLayout.setContentsMargins(0,0,0,0)
+
+        self.setWindowTitle("Asset Library")
+        self.setObjectName("assetLib")
+
+        self.tabDialog()
+
+    def tabDialog(self):
+
+        # This is the default tab
+        tabA = libraryTab(DIRECTORY)
+        # self.defaultTab = tabA
+
+        self.addTab(tabA, "Default Library")
+        tabA.setLayout(tabA.layout)
+
+        self.addNew = QtWidgets.QWidget()
+        self.addTab(self.addNew, "+")
+
+        self.currentChanged.connect(self.createNewTab)  # changed!
+        # self.currentChanged(self.createNewTab)
+
+    def createNewTab(self):
+        currentIndex=self.currentIndex()
+        totalTabs=self.count()
+        if currentIndex >= (totalTabs-1):
+            self.setCurrentIndex(currentIndex-1)
+            ## ASK For the new direcory location:
+
+            directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Asset Directory", QtCore.QDir.currentPath())
+            if directory:
+
+                self.tabID += 1
+                testTab = libraryTab(directory)
+                self.addTab(testTab, str(os.path.basename(directory)))
+                self.tabBar().moveTab(currentIndex, currentIndex+1)
+                self.setCurrentIndex(currentIndex)
+                self.saveSettings()
+
+    def saveSettings(self):
+        ## get the file location
+        settingsFile = os.path.join(os.path.dirname(os.path.abspath( __file__ )),"assetLibraryConfig.json")
+        print "fileLocation", settingsFile
+
+        ## Check for the settings file in the location
+        # if not os.path.isfile(settingsFile):
+        # ## if there is no settings file create one
+        #     settings={"anan":23, "bacin":38}
+        #     with open(settingsFile, "w") as f:
+        #         json.dump(settings, f, indent=4)
+
+        allTabs = {"anan": 23, "bacin": 38}
+        with open(settingsFile, "w") as f:
+            json.dump(allTabs, f, indent=4)
+
+
+        ## write the settings to the .json file
+
+    def loadSettings(self):
+        ## get the file location
+
+        ## check for the settings file in the location
+
+        ## if there is no setting file create one and write default settings
+
+        with open(file, 'r') as f:
+            # The JSON module will read our file, and convert it to a python dictionary
+            data = json.load(f)
+            name = data["assetName"]
+            self[name] = data
+
+        pass
+
+class libraryTab(QtWidgets.QWidget):
+
+    # directory = DIRECTORY
+
+    def __init__(self, directory):
+        self.directory = directory
 
         # super is an interesting function
         # It gets the class that our class is inheriting from
@@ -499,82 +588,55 @@ class AssetLibraryUI(QtWidgets.QDialog):
         # The reason is that because we redefined __init__ in our class, we no longer call the code in the super's init
         # So we need to call our super's init to make sure we are initialized like it wants us to be
         # me=self
-        for entry in QtWidgets.QApplication.allWidgets():
-            if entry.objectName() == "assetLib":
-                # print entry
-                entry.close()
+        # for entry in QtWidgets.QApplication.allWidgets():
+        #     if entry.objectName() == "assetLib":
+        #         # print entry
+        #         entry.close()
 
-        parent = getMayaMainWindow()
+        # parent = getMayaMainWindow()
 
-        super(AssetLibraryUI, self).__init__(parent=parent)
+        super(libraryTab, self).__init__()
 
         # We set our window title
-        self.setWindowTitle('Asset Library UI')
-        self.setObjectName("assetLib")
+        # self.setWindowTitle('Asset1')
+        # self.setObjectName("Asset1")
 
         # We store our library as a variable that we can access from inside us
-        self.library = assetLibrary()
+        self.library = assetLibrary(directory)
 
         # Finally we build our UI
 
-        self.buildUI()
+        self.buildTabUI()
 
+        # self.setLayout(layout)
 
-    def buildUI(self):
-        """
-        Main Dialog Window
-        Returns:
-            None
-        """
-        layout = QtWidgets.QVBoxLayout(self)
+    def buildTabUI(self):
 
-        # We want to make another widget to store our controls to save the controller
-        # A widget is what we call a UI element
+        self.layout = QtWidgets.QVBoxLayout(self)
+
         searchWidget = QtWidgets.QWidget()
-        # Every widget needs a layout. We want a Horizontal Box Layout for this one, and tell it to apply to our widget
         searchLayout = QtWidgets.QHBoxLayout(searchWidget)
-        # Finally we add this widget to our main widget
-        layout.addWidget(searchWidget)
 
-        # Our first order of business is to have a text box that we can enter a name
-        # In Qt this is called a LineEdit
+        self.layout.addWidget(searchWidget)
+
         self.searchLabel = QtWidgets.QLabel("Seach Filter: ")
         searchLayout.addWidget(self.searchLabel)
         self.searchNameField = QtWidgets.QLineEdit()
-        # We will then add this to our layout for our save controls
+
         self.searchNameField.textEdited.connect(self.populate)
         searchLayout.addWidget(self.searchNameField)
-
-        # # We add a button to call the save command
-        # saveBtn = QtWidgets.QPushButton('Save')
-        # # When the button is clicked it fires a signal
-        # # A signal can be connected to a function
-        # # So when the button is called, it will call the function that is given.
-        # # In this case, we tell it to call the save method
-        # saveBtn.clicked.connect(self.save)
-        # # and then we add it to our save layout
-        # saveLayout.addWidget(saveBtn)
-
-        # Now we'll set up the list of all our items
-        # The size is for the size of the icons we will display
         self.size = 64
-        # First we create a list widget, this will list all the items we give it
         self.listWidget = QtWidgets.QListWidget()
-        # We want the list widget to be in IconMode like a gallery so we set it to a mode
         self.listWidget.setViewMode(QtWidgets.QListWidget.IconMode)
         self.listWidget.setMinimumSize(350, 600)
-        # We set the icon size of this list
         self.listWidget.setIconSize(QtCore.QSize(self.size, self.size))
-        # self.listWidget.setSortingEnabled(True)
         self.listWidget.setMovement(QtWidgets.QListView.Static)
         self.listWidget.setResizeMode(QtWidgets.QListWidget.Adjust)
         self.listWidget.setGridSize(QtCore.QSize(self.size *1.2, self.size *1.4))
-        # And finally, finally, we add it to our main layout
-        layout.addWidget(self.listWidget)
+        self.layout.addWidget(self.listWidget)
         self.listWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.listWidget.customContextMenuRequested.connect(self.on_context_menu)
-        self.popMenu = QtWidgets.QMenu(self)
-
+        self.popMenu = QtWidgets.QMenu()
         ssAction = QtWidgets.QAction('Show Screenshot', self)
         self.popMenu.addAction(ssAction)
         ssAction.triggered.connect(lambda item='ssPath': self.actionTrigger(item))
@@ -600,16 +662,11 @@ class AssetLibraryUI(QtWidgets.QDialog):
         openFileAction = QtWidgets.QAction('Open File', self)
         self.popMenu.addAction(openFileAction)
         openFileAction.triggered.connect(lambda item='openFile': self.actionTrigger(item))
-        # sUvAction = QtWidgets.QAction('Show UV snapshot', self)
-        # self.popMenu.addAction(sUvAction)
-        # sUvAction.triggered.connect(lambda item=sUvAction.text(): self.actionTrigger(item))
-
         self.popMenu.addSeparator()
 
         self.viewAsListAction = QtWidgets.QAction('View As List', self)
         self.popMenu.addAction(self.viewAsListAction)
         self.viewAsListAction.triggered.connect(lambda item='viewModeChange': self.actionTrigger(item))
-
 
         self.popMenu.addSeparator()
 
@@ -617,19 +674,12 @@ class AssetLibraryUI(QtWidgets.QDialog):
         self.popMenu.addAction(openFolderAction)
         openFolderAction.triggered.connect(lambda item='openFolder': self.actionTrigger(item))
 
-        # Now we need a layout to store our buttons
-        # So first we create a widget to store this layout
         btnWidget = QtWidgets.QWidget()
-        # We create another horizontal layout and tell it to apply to our btn widdget
         btnLayout = QtWidgets.QHBoxLayout(btnWidget)
-        # And we add this widget to our main UI
-        layout.addWidget(btnWidget)
+        self.layout.addWidget(btnWidget)
 
-        # Similar to above we create three buttons
         importBtn = QtWidgets.QPushButton('Import')
-        # And we connect it to the relevant functions
         importBtn.clicked.connect(lambda cp_txt=True: self.load(cp_txt))
-        # And finally we add them to the button layout
         btnLayout.addWidget(importBtn)
 
         refreshBtn = QtWidgets.QPushButton('Refresh')
@@ -637,16 +687,16 @@ class AssetLibraryUI(QtWidgets.QDialog):
         btnLayout.addWidget(refreshBtn)
 
         self.exportBtn = QtWidgets.QPushButton('Export')
-        # exportBtn.clicked.connect(self.save)
         self.exportBtn.clicked.connect(self.export)
         btnLayout.addWidget(self.exportBtn)
 
-        shortcutExport =Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+E"), self, self.export)
+        shortcutExport = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+E"), self, self.export)
         shortcutImport = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+I"), self, lambda val=True: self.load(val))
         scIncreaseIconSize = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl++"), self, lambda val=10: self.adjustIconSize(val))
         scDecreaseIconSize = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+-"), self, lambda val=-10: self.adjustIconSize(val))
 
         self.populate()
+
 
     def adjustIconSize(self, value):
         self.size += value
@@ -655,16 +705,6 @@ class AssetLibraryUI(QtWidgets.QDialog):
 
 
     def actionTrigger(self, item):
-        """
-        Triggers certain tasks for right click menu items of assets
-        Args:
-            item: (Unicode) This may be custom commands (Currently only 'openFolder') or valid dictionary item keys (ssPath, swPath...)
-
-        Returns:
-            None
-
-        """
-        # logger.debug(item)
         currentItem = self.listWidget.currentItem()
         name = currentItem.text()
         info = self.library[name]
@@ -685,8 +725,6 @@ class AssetLibraryUI(QtWidgets.QDialog):
             asset = info.get('assetName')
             filepath = os.path.join(self.directory, asset, filename)
             pm.openFile(filepath, force=True)
-            # pm.openFile(filepath, o=True)
-            # pm.openFile(filepath)
 
         elif item == 'viewModeChange':
             self.viewModeState = self.viewModeState * -1
@@ -708,15 +746,7 @@ class AssetLibraryUI(QtWidgets.QDialog):
         self.popMenu.exec_(self.listWidget.mapToGlobal(point))
 
     def export(self):
-        """
-        UI Export function - links to the assetLibrary.saveAsset()
-        Returns:
-            None
 
-        """
-        # self.exportWindow = QtWidgets.QDialog()
-        # self.exportWindow.setWindowTitle('hoyt')
-        # self.exportWindow.resize(200,150)
         exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog',
                                                           'SAVE BEFORE PROCEED\n\nANY UNSAVED WORK WILL BE LOST\n\nEnter Asset Name:')
         if ok:
