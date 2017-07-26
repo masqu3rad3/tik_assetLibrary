@@ -5,9 +5,9 @@
 ## AUTHOR:	Arda Kutlu
 ## e-mail: ardakutlu@gmail.com
 ## Web: http://www.ardakutlu.com
-## VERSION:1.0
+## VERSION:1.2(beta)
 ## CREATION DATE: 11.07.2017
-## LAST MODIFIED DATE: 11.07.2017
+## LAST MODIFIED DATE: 26.07.2017
 ##
 ## DESCRIPTION: Asset Library which will hold the frequently used product models.
 ## INSTALL:
@@ -17,6 +17,14 @@
 ## assetLibrary.AssetLibraryUI().show()
 ##
 ## USAGE:
+## TABS MENU:
+## - At the first run, a pop up folder window will ask for the asset library. It can be a new one or an existing Asset Library folder.
+                ## This action is one time only. A file called assetLibraryConfig.json will be created on the same folder with the script file.
+## - Hit the "+" tab to add additional Libraries.
+## - You can rename, re-path, or delete libraries from the right click menu on tabs.
+                ## Please note that these actions will only affect on selected (viewing) tab
+                ## Deleting the library does not delete the library folder, it only removes the tab and updates config file.
+                ## At any time the removed library can be added again without any loss.
 
 ## MAIN MENU:
 ## - Top search filter can be used to filter assets.
@@ -41,6 +49,15 @@
 ## - CTRL+e will export selection. Same action with the "export" button
 ## - CTRL+PLUS(+) will increase the icon size
 ## - CTRL+MINUS(-) will decrease the icon size
+
+## Version History:
+## v1.2
+## - Support for multiple Libraries added. Tabbed window allows to control multiple libraries at the same time
+## - Directory path is not fixed therefore now it can be used anywhere for multiple purposes.
+## - Added configuration database. AssetLibraryConfig.json file will hold the path configurations and tab names
+##
+## v1.0
+## - Initial Release
 
 #####################################################################################################################
 
