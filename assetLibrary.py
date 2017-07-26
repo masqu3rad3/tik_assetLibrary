@@ -730,7 +730,7 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
 
 
 class libraryTab(QtWidgets.QWidget):
-
+    viewModeState = 1
     def __init__(self, directory):
         self.directory = directory
 
