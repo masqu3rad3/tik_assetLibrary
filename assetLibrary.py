@@ -712,27 +712,6 @@ class MainUI(QtWidgets.QTabWidget):
         logger.warning("Settings file not changed")
 
 
-    # def renameLibrary(self):
-    #     ## TODO: Add a renaming option to the sub-menu
-    #     currentIndex = self.currentIndex()
-    #
-    #     libraryData = self.settings(mode="load")
-    #     print "TESTING", libraryData[currentIndex][0]
-    #
-    #     exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog',
-    #                                                       'New Name:')
-    #     if ok:
-    #         newInput = str(exportWindow)
-    #         if not newInput.strip():
-    #             logger.warn("You must give a name!")
-    #             return
-    #         self.setTabText(currentIndex, newInput)
-    #         ## update the settings file
-    #         libraryData[currentIndex][0] = newInput
-    #         self.settings(mode=)
-
-
-
 class libraryTab(QtWidgets.QWidget):
 
     def __init__(self, directory):
