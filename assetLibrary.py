@@ -499,7 +499,7 @@ class bufferUI(QtWidgets.QDialog):
         self.setObjectName("assetLib")
         self.show()
 
-class MainUI(QtWidgets.QTabWidget):
+class AssetLibraryUI(QtWidgets.QTabWidget):
     tabID = 0
     def __init__(self):
         for entry in QtWidgets.QApplication.allWidgets():
@@ -509,7 +509,7 @@ class MainUI(QtWidgets.QTabWidget):
 
         ## I use another QDialog as buffer since Tabs wont work when parented to the Maya Ui.
         self.buffer=bufferUI()
-        super(MainUI, self).__init__(parent=self.buffer)
+        super(AssetLibraryUI, self).__init__(parent=self.buffer)
 
         ## This will put the Tab Widget into the buffer layout
         self.buffer.superLayout.addWidget(self)
