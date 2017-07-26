@@ -1,6 +1,5 @@
 #####################################################################################################################
 ## Asset Library - Python Script
-## Copyright (C) Arda Kutlu
 ## Title: Asset Library
 ## AUTHOR:	Arda Kutlu
 ## e-mail: ardakutlu@gmail.com
@@ -9,7 +8,8 @@
 ## CREATION DATE: 11.07.2017
 ## LAST MODIFIED DATE: 26.07.2017
 ##
-## DESCRIPTION: Asset Library which will hold the frequently used product models.
+## DESCRIPTION: Asset Library which will hold the frequently used product models. This Script are based on the Dhruv Govil's example code: controller Library
+                ## (https://github.com/dgovil/PythonForMayaSamples/tree/master/controllerLibrary)
 ## INSTALL:
 ## Copy all files into user/maya/scripts folder(not folder, only files)
 ## Run these commands in python tab (or put them in a shelf:
