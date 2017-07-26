@@ -96,7 +96,7 @@ class assetLibrary(dict):
     def __init__(self, directory):
         self.directory=directory
         if not os.path.exists(directory):
-            pm.error("Cannot reach the easy access directory")
+            logger.error("Cannot reach the library directory: \n" + directory)
 
     def saveAsset(self, assetName, screenshot=True, moveCenter=False, **info):
         """
@@ -485,10 +485,6 @@ class bufferUI(QtWidgets.QDialog):
 class MainUI(QtWidgets.QTabWidget):
     tabID = 0
     def __init__(self):
-        # for entry in QtWidgets.QApplication.allWidgets():
-        #     if entry.objectName() == windowName:
-        #         entry.close()
-        # parent = getMayaMainWindow()
         for entry in QtWidgets.QApplication.allWidgets():
             if entry.objectName() == "assetLib":
                 # print entry
@@ -515,19 +511,27 @@ class MainUI(QtWidgets.QTabWidget):
 
 
         # first create the libraries defined in the settings file
-        libs = self.loadSettings()
+        libs = self.settings(mode="load")
+        junkPaths=[]
         for item in libs:
             name = item[0]
             path = item[1]
+            if not os.path.exists(path):
+                logger.warning("Cannot reach library path: \n%s \n Removing from the database..." %(path))
+                junkPaths.append(item)
+                continue
             preTab = libraryTab(path)
             self.addTab(preTab, name)
             preTab.setLayout(preTab.layout)
+
+        ## Remove the junk paths from the config file
+        for x in junkPaths:
+            self.settings(mode="remove", item=x)
+
+
         if len(libs) == 0:
             self.createNewTab()
 
-
-        # self.addTab(tabA, "Default Library")
-        # tabA.setLayout(tabA.layout)
 
         self.addNew = QtWidgets.QWidget()
         # self.addNew.installEventFilter(self.addNew)
@@ -539,9 +543,23 @@ class MainUI(QtWidgets.QTabWidget):
         self.customContextMenuRequested.connect(self.on_context_menu)
 
         self.tabsRightMenu = QtWidgets.QMenu()
+
+        renameTabAction = QtWidgets.QAction('Rename', self)
+        self.tabsRightMenu.addAction(renameTabAction)
+        # renameTabAction.triggered.connect(self.renameLibrary)
+        renameTabAction.triggered.connect(lambda val="rename": self.settings(mode=val))
+
+        repathTabAction = QtWidgets.QAction('Re-path', self)
+        self.tabsRightMenu.addAction(repathTabAction)
+        # renameTabAction.triggered.connect(self.renameLibrary)
+        repathTabAction.triggered.connect(lambda val="repath": self.settings(mode=val))
+
         removeTabAction = QtWidgets.QAction('Remove Selected Library', self)
         self.tabsRightMenu.addAction(removeTabAction)
         removeTabAction.triggered.connect(self.deleteCurrentTab)
+
+
+
 
         self.currentChanged.connect(self.createNewTab)  # changed!
         # self.currentChanged(self.createNewTab)
@@ -567,14 +585,17 @@ class MainUI(QtWidgets.QTabWidget):
                 self.addTab(testTab, tabName)
                 self.tabBar().moveTab(currentIndex, currentIndex+1)
                 self.setCurrentIndex(currentIndex)
-                self.saveSettings(tabName, directory)
-                # self.saveSettings()
+                self.settings(mode="add", name=tabName , path=directory)
 
-    def eventFilter(self, QObject, event):
-        if event.type() == QtCore.Event.MouseButtonPress:
-            if event.button() == Qt.RightButton:
-                print("Right button clicked")
-        return False
+
+    # def eventFilter(self, QObject, event):
+    #     if event.type() == QtCore.Event.MouseButtonPress:
+    #         if event.button() == Qt.RightButton:
+    #             print("Right button clicked")
+    #     return False
+
+## TODO: FOOL PROOF config.json file. Test possible situations
+## TODO: FOOL PROOF missing library folder (a re-path sub menu item within the right click menu?)
 
     def deleteCurrentTab(self):
 
@@ -587,46 +608,129 @@ class MainUI(QtWidgets.QTabWidget):
                 widget.deleteLater()
             self.setCurrentIndex(currentIndex - 1)
             self.removeTab(currentIndex)
-            settingsFile = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assetLibraryConfig.json")
-            libData = self.loadSettings()
-            libData.pop(currentIndex)
-            with open(settingsFile, "w") as f:
-                json.dump(libData, f, indent=4)
+            self.settings(mode="remove", itemIndex=currentIndex)
 
+    def settings(self, mode, name=None, path=None, itemIndex=None, item=None):
+        """
+        Reads and write Library name and path information on/from config file (assetLibraryConfig.json)
+        
+        Add mode
+        adds the name and path of the directory to the database. "name" and "path" arguments are required.
+        Ex.
+        settings(mode="add", name="NameOfTheLib", path="Absolute/path/of/the/library")
+        
+        Remove mode
+        Removes the given item from the database. Either "itemIndex" or "item" arguments are required. If both given, "item" will be used.
+        Ex.
+        settings(mode="remove", itemIndex=2)
+        or
+        settings(mode="remove", item=["Name","Path"])
+        
+        Rename mode
+        Opens a input dialog, renames the selected tab and updates database with the new name
+        
+        Repath mode
+        Opens a folder selection dialog, updates database with the selected folder
+        
+        Load mode
+        Returns the database list.
+        
+        Args:
+            mode: (String) Valid values are "add", "remove", "load".
+            name: (String) Tab Name of the Library to be added. Required by "add" mode
+            path: (String) Absolute Path of the Library to be added. Required by "add" mode
+            itemIndex: (Int) Index value of the item which will be removed from the database. Required by "remove" mode IF item flag is not set
+            item: (Int) item which will be removed from the database. Required by "remove" mode IF itemIndex flag is not set.
 
+        Returns:
+            Load mode returns List
 
-    def saveSettings(self, name, path):
+        """
         ## get the file location
         settingsFile = os.path.join(os.path.dirname(os.path.abspath( __file__ )),"assetLibraryConfig.json")
-        # print "fileLocation", settingsFile
+        def dump(data,file):
+            with open(file, "w") as f:
+                json.dump(data, f, indent=4)
 
-        ## Check for the settings file in the location
-        # if not os.path.isfile(settingsFile):
-        # ## if there is no settings file create one
-        #     settings={"anan":23, "bacin":38}
-        #     with open(settingsFile, "w") as f:
-        #         json.dump(settings, f, indent=4)
-        currentData = self.loadSettings()
-        allTabs = {}
-        ## gather all tabs
-        currentData.append([name, path])
-        with open(settingsFile, "w") as f:
-            json.dump(currentData, f, indent=4)
+        if mode == "add" and name is not None and path is not None:
+            currentData = self.settings(mode="load")
+            currentData.append([name, path])
+            dump(currentData, settingsFile)
+            return
+        if mode == "remove":
+            print "itemIndex", itemIndex
+            print "item", item
+            currentData = self.settings(mode="load")
+            if itemIndex is not None:
+                currentData.pop(itemIndex)
+            elif item is not None:
+                currentData.remove(item)
+            else:
+                logger.warning("You need to specify itemIndex or item for remove action")
+                return
+            dump(currentData, settingsFile)
+            return
 
 
-        ## write the settings to the .json file
+        if mode == "rename":
+            currentIndex = self.currentIndex()
+            if currentIndex == self.count():
+                return
+            currentData = self.settings(mode="load")
+            exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog','New Name:')
+            if ok:
+                newInput = str(exportWindow)
+                if not newInput.strip():
+                    logger.warn("You must give a name!")
+                    return
+                self.setTabText(currentIndex, newInput)
+                ## update the settings file
+                currentData[currentIndex][0] = newInput
+                dump(currentData,settingsFile)
+                return
 
-    def loadSettings(self):
-        ## get the file location
-        settingsFile = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assetLibraryConfig.json")
-        ## check for the settings file in the location
-        if os.path.isfile(settingsFile):
-            with open(settingsFile, 'r') as f:
-                # The JSON module will read our file, and convert it to a python dictionary
-                data = json.load(f)
-                return data
-        else:
-            return []
+        if mode == "repath":
+            currentIndex = self.currentIndex()
+            if currentIndex == self.count():
+                return
+            currentData = self.settings(mode="load")
+
+            newDir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Asset Directory", QtCore.QDir.currentPath())
+            if newDir:
+                currentData[currentIndex][1] = newDir
+                dump(currentData,settingsFile)
+                return
+
+        if mode == "load":
+            if os.path.isfile(settingsFile):
+                with open(settingsFile, 'r') as f:
+                    # The JSON module will read our file, and convert it to a python dictionary
+                    data = json.load(f)
+                    return data
+            else:
+                return []
+        logger.warning("Settings file not changed")
+
+
+    # def renameLibrary(self):
+    #     ## TODO: Add a renaming option to the sub-menu
+    #     currentIndex = self.currentIndex()
+    #
+    #     libraryData = self.settings(mode="load")
+    #     print "TESTING", libraryData[currentIndex][0]
+    #
+    #     exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog',
+    #                                                       'New Name:')
+    #     if ok:
+    #         newInput = str(exportWindow)
+    #         if not newInput.strip():
+    #             logger.warn("You must give a name!")
+    #             return
+    #         self.setTabText(currentIndex, newInput)
+    #         ## update the settings file
+    #         libraryData[currentIndex][0] = newInput
+    #         self.settings(mode=)
+
 
 
 class libraryTab(QtWidgets.QWidget):
