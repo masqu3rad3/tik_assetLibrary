@@ -77,32 +77,41 @@ logging.basicConfig()
 logger = logging.getLogger('AssetLibrary')
 logger.setLevel(logging.INFO)
 
-if Qt.__binding__ == "PySide":
-    logger.debug('Using PySide with shiboken')
-    from shiboken import wrapInstance
-    from Qt.QtCore import Signal
-elif Qt.__binding__.startswith('PyQt'):
-    logger.debug('Using PyQt with sip')
-    from sip import wrapinstance as wrapInstance
-    from Qt.Core import pyqtSignal as Signal
-else:
-    logger.debug('Using PySide2 with shiboken')
-    from shiboken2 import wrapInstance
-    from Qt.QtCore import Signal
+# With the latest version of Qt.py (that you're using, this is no longer necessary
+#
+# if Qt.__binding__ == "PySide":
+#     logger.debug('Using PySide with shiboken')
+#     from shiboken import wrapInstance
+#     from Qt.QtCore import Signal
+# elif Qt.__binding__.startswith('PyQt'):
+#     logger.debug('Using PyQt with sip')
+#     from sip import wrapinstance as wrapInstance
+#     from Qt.Core import pyqtSignal as Signal
+# else:
+#     logger.debug('Using PySide2 with shiboken')
+#     from shiboken2 import wrapInstance
+#     from Qt.QtCore import Signal
 
+from Qt.QtCompat import wrapInstance
+from Qt.QtCore import Signal
+
+# This is interesting. I wasn't aware of this function in os.path. Very useful.
 DIRECTORY = os.path.normpath("M:\Projects\_AssetLibrary")
 
-
+# This doesn't seem to get called anywhere?
 def find(pattern, path):
-    result = []
     for root, dirs, files in os.walk(path):
         for name in files:
             if fnmatch.fnmatch(name, pattern):
-                result.append(os.path.join(root, name))
-    return result
+                # Instead of returning a list, you can yield.
+                # yield is like return, but it doesn't stop the loop right away.
+                # Basically if you use it in a for loop, it doesn't have to create the whole list first
+                #     and it gives items to the loop as it is found.
+                yield os.path.join(root, name)
 
 
-class assetLibrary(dict):
+# Classes traditionally start with a capital letter in Python
+class AssetLibrary(dict):
     """
     Asset Library Logical operations Class. This Class holds the main functions (save,import,scan)
     """
@@ -111,6 +120,10 @@ class assetLibrary(dict):
     # assetName = "test"
 
     def __init__(self, directory):
+        # You should always call the super.
+        # It means the dictionary can initialize properly but also in case you ever change what it inherits from,
+        #    it will still work
+        super(AssetLibrary, self).__init__()
         self.directory=directory
         if not os.path.exists(directory):
             logger.error("Cannot reach the library directory: \n" + directory)
@@ -143,7 +156,9 @@ class assetLibrary(dict):
 
         ## TODO // in a scenario where a group object selected, select all meshes under the group recursively (you did that before somewhere else)
         selection = pm.ls(sl=True, type="transform")
-        if len(selection) == 0:
+
+        # It is actually better to check if its False when looking for empty lists.
+        if not selection:
             pm.warning("No object selected, nothing to do")
             return
 
@@ -181,19 +196,29 @@ class assetLibrary(dict):
         # selection for poly evaluate
         pm.select(possibleFileHolders)
         polyCount = pm.polyEvaluate(f=True)
+        # You have a typo here
         tiangleCount = pm.polyEvaluate(t=True)
 
         ## Json stuff
 
-        info['assetName'] = assetName
-        info['objPath'] = self.pathOps(objName, "basename")
-        info['maPath'] = self.pathOps(maName, "basename")
-        info['thumbPath'] = self.pathOps(thumbPath, "basename")
-        info['ssPath'] = self.pathOps(ssPath, "basename")
-        info['swPath'] = self.pathOps(swPath, "basename")
-        info['textureFiles'] = allFileTextures
-        info['Faces/Trianges'] = ("%s/%s" % (str(polyCount), str(tiangleCount)))
-        info['sourceProject'] = originalPath
+        # It's not a big deal, but it's actually faster to do it this way instead
+        # Python has to find info fewer times and it can update it in one go, instead of multiple times.
+        # Also less to type
+        info.update({
+            'assetName': assetName,
+            'objPath': self.pathOps(objName, "basename")
+            # etc...
+        })
+
+        # info['assetName'] = assetName
+        # info['objPath'] = self.pathOps(objName, "basename")
+        # info['maPath'] = self.pathOps(maName, "basename")
+        # info['thumbPath'] = self.pathOps(thumbPath, "basename")
+        # info['ssPath'] = self.pathOps(ssPath, "basename")
+        # info['swPath'] = self.pathOps(swPath, "basename")
+        # info['textureFiles'] = allFileTextures
+        # info['Faces/Trianges'] = ("%s/%s" % (str(polyCount), str(tiangleCount)))
+        # info['sourceProject'] = originalPath
 
         # query the number of faces
         pm.polyEvaluate(f=True)
@@ -228,11 +253,13 @@ class assetLibrary(dict):
             return
         self.clear()
         # first collect all the json files from second level subfolders
-        subDirs = next(os.walk(self.directory))[1]
+        # subDirs = next(os.walk(self.directory))[1]
 
         # subDirs= (subDirs.sort())
         allJson = []
-        for d in subDirs:
+        # Since you aren't sorting the subdirs, I think it's actually better to just use it directly in the loop
+        # This will be more efficient and less prone to errors
+        for d in os.walk(self.directory):
             dir = os.path.join(self.directory, d)
             for file in os.listdir(dir):
                 if file.endswith(".json"):
@@ -251,6 +278,8 @@ class assetLibrary(dict):
                         #     with open(infoFile, 'r') as f:
                         #         # The JSON module will read our file, and convert it to a python dictionary
                         #         data = json.load(f)
+
+            break
 
     def importAsset(self, name, copyTextures, mode="maPath"):
         """
@@ -324,19 +353,22 @@ class assetLibrary(dict):
             logger.warning("The focus is not on a model panel, using the perspective view")
             panel = pm.getPanel(wl="Persp View")
             # Somehot wl dont return a regular string, convert it to a regular string
-            t = ""
-            for z in panel:
-                t += z
-            panel = t
 
-        pm.modelEditor(panel, e=1, allObjects=1)
-        pm.modelEditor(panel, e=1, da="smoothShaded")
-        pm.modelEditor(panel, e=1, displayTextures=1)
-        pm.modelEditor(panel, e=1, wireframeOnShaded=0)
+            # I would use better variable names
+            # You can also use the join method of a string. It'll be faster than going through the loop.
+            # Less to type as well.
+            panel = ''.join(panel)
+            # t = ""
+            # for z in panel:
+            #     t += z
+            # panel = t
+
+        # You can actually do all of these in once call
+        # It'll be quite a bit faster.
+        pm.modelEditor(panel, e=1, allObjects=1, da="smoothShaded", displayTextures=1, wireframeOnShaded=0)
         pm.viewFit()
 
-        pm.isolateSelect(panel, state=1)
-        pm.isolateSelect(panel, addSelected=True)
+        pm.isolateSelect(panel, state=1, addSelected=True)
         # temporarily deselect
         pm.select(d=True)
         pm.setAttr("defaultRenderGlobals.imageFormat", 8)  # This is the value for jpeg
@@ -359,19 +391,21 @@ class assetLibrary(dict):
         pm.select(selection)
         # UV Snapshot -- It needs
         logger.info("Saving UV Snapshots")
-        for i in range(0, len(validShapes)):
-            print "validShape", validShapes[i]
+
+        # You can just loop through the values in the validShapes dict instead of doing lookups.
+        # This will be a lot faster and cleaner.
+        for shape in validShapes.values():
+            print "validShape", shape
             # transformNode = validShapes[i].getParent()
-            objName = validShapes[i].name()
+            objName = shape.name()
             UVpath = os.path.join(assetDirectory, '%s_uv.jpg' % objName)
-            pm.select(validShapes[i])
+            pm.select(shape)
             try:
                 pm.uvSnapshot(o=True, ff="jpg", n=UVpath, xr=1600, yr=1600)
             except:
-                logger.warning("UV snapshot is missed for %s" %validShapes[i])
+                logger.warning("UV snapshot is missed for %s" %shape)
 
-        pm.isolateSelect(panel, state=0)
-        pm.isolateSelect(panel, removeSelected=True)
+        pm.isolateSelect(panel, state=0, removeSelected=True)
 
         # TODO // store the scene defaults (camera position, imageFormat, etc.
 
@@ -399,13 +433,17 @@ class assetLibrary(dict):
 
     def findFileNodes(self, shape):
         print "shape:", shape
+
+        # THis function checkInputs never gets used
         def checkInputs(node):
             inputNodes = node.inputs()
-            if len(inputNodes) == 0:
+
+            if not inputNodes:
                 return []
-            else:
-                filteredNodes = [x for x in inputNodes if x.type() != "renderLayer"]
-                return filteredNodes
+
+            # The else statement is unnecessary here.
+            filteredNodes = [x for x in inputNodes if x.type() != "renderLayer"]
+            return filteredNodes
         # geo = obj.getShape()
         # Get the shading group from the selected mesh
         try:
@@ -424,10 +462,10 @@ class assetLibrary(dict):
         return fileNodes
 
     def makeUnique(self, fList):
-        keys = {}
-        for e in fList:
-            keys[e] = 1
-        return keys.keys()
+        # You can instead just do this
+        # Also be careful that you dont need order. Both your function and the set command don't keep ordering.
+        return set(fList)
+
 
     # def gatherAllinputs(self, node):
     #     allInputs = []
@@ -546,7 +584,7 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
             self.settings(mode="remove", item=x)
 
 
-        if len(libs) == 0:
+        if not libs:
             self.createNewTab()
 
 
@@ -749,7 +787,7 @@ class libraryTab(QtWidgets.QWidget):
 
         super(libraryTab, self).__init__()
 
-        self.library = assetLibrary(directory)
+        self.library = AssetLibrary(directory)
         self.buildTabUI()
 
 
