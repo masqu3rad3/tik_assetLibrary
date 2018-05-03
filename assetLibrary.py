@@ -9,7 +9,7 @@
 ## LAST MODIFIED DATE: 07.10.2017
 ##
 ## DESCRIPTION: Asset Library which will hold the frequently used product models. This Script are based on the Dhruv Govil's example code: controller Library
-                ## (https://github.com/dgovil/PythonForMayaSamples/tree/master/controllerLibrary)
+## (https://github.com/dgovil/PythonForMayaSamples/tree/master/controllerLibrary)
 ## INSTALL:
 ## Copy all files into user/maya/scripts folder(not folder, only files)
 ## Run these commands in python tab (or put them in a shelf:
@@ -19,17 +19,17 @@
 ## USAGE:
 ## TABS MENU:
 ## - At the first run, a pop up folder window will ask for the asset library. It can be a new one or an existing Asset Library folder.
-                ## This action is one time only. A file called assetLibraryConfig.json will be created on the same folder with the script file.
+## This action is one time only. A file called assetLibraryConfig.json will be created on the same folder with the script file.
 ## - Hit the "+" tab to add additional Libraries.
 ## - You can rename, re-path, or delete libraries from the right click menu on tabs.
-                ## Please note that these actions will only affect on selected (viewing) tab
-                ## Deleting the library does not delete the library folder, it only removes the tab and updates config file.
-                ## At any time the removed library can be added again without any loss.
+## Please note that these actions will only affect on selected (viewing) tab
+## Deleting the library does not delete the library folder, it only removes the tab and updates config file.
+## At any time the removed library can be added again without any loss.
 
 ## MAIN MENU:
 ## - Top search filter can be used to filter assets.
 ## - Use the Export Import button to import selected asset. This will copy all texture files under the
-                ## sourceimages/<assetname> directory of currently set project
+## sourceimages/<assetname> directory of currently set project
 ## - Use Refresh Button to manually refresh the library.
 ## - Use Export button to put selected objects into the Library
 
@@ -73,8 +73,6 @@ import logging
 from Qt import QtWidgets, QtCore, QtGui
 from maya import OpenMayaUI as omui
 
-
-
 logging.basicConfig()
 logger = logging.getLogger('AssetLibrary')
 logger.setLevel(logging.INFO)
@@ -113,11 +111,11 @@ class assetLibrary(dict):
     # assetName = "test"
 
     def __init__(self, directory):
-        self.directory=directory
+        self.directory = directory
         if not os.path.exists(directory):
             logger.error("Cannot reach the library directory: \n" + directory)
 
-    def saveAsset(self, assetName, screenshot=True, moveCenter=False, **info):
+    def saveAsset(self, assetName, screenshot=True, moveCenter=False, selectionOnly=False, **info):
         """
         Saves the selected object(s) as an asset into the predefined library
         Args:
@@ -145,7 +143,7 @@ class assetLibrary(dict):
 
         ## TODO // in a scenario where a group object selected, select all meshes under the group recursively (you did that before somewhere else)
         selection = pm.ls(sl=True, type="transform")
-        if len(selection) == 0:
+        if len(selection) == 0 and selectionOnly:
             pm.warning("No object selected, nothing to do")
             return
 
@@ -173,17 +171,32 @@ class assetLibrary(dict):
             pm.delete(tempPo)
             pm.delete(tempLoc)
 
-        thumbPath, ssPath, swPath = self.previewSaver(assetName, assetDirectory)
+        thumbPath, ssPath, swPath = self.previewSaver(assetName, assetDirectory, selectionOnly=selectionOnly)
 
-        pm.select(selection)
-        objName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
-                                    options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True, es=True)
-        maName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="mayaAscii")
+        if selectionOnly:
+            pm.select(selection)
+            # objName = "N/A"
+            objName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
+                                        options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True,
+                                        es=True)
+            maName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="mayaAscii")
 
-        # selection for poly evaluate
-        pm.select(possibleFileHolders)
-        polyCount = pm.polyEvaluate(f=True)
-        tiangleCount = pm.polyEvaluate(t=True)
+            # selection for poly evaluate
+            pm.select(possibleFileHolders)
+            polyCount = pm.polyEvaluate(f=True)
+            tiangleCount = pm.polyEvaluate(t=True)
+
+        else:
+            pm.select(d=True)
+            # objName = "N/A"
+            objName = pm.exportAll(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
+                                   options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True)
+            maName = pm.exportAll(os.path.join(assetDirectory, assetName), type="mayaAscii")
+
+            # selection for poly evaluate
+            pm.select(d=True)
+            polyCount = pm.polyEvaluate(f=True)
+            tiangleCount = pm.polyEvaluate(t=True)
 
         ## Json stuff
 
@@ -257,9 +270,9 @@ class assetLibrary(dict):
     def importAsset(self, name, copyTextures, mode="maPath"):
         """
         Imports the selected asset into the current scene
-        
+
         Args:
-            name: (Unicode) Name of the asset which will be imported 
+            name: (Unicode) Name of the asset which will be imported
             copyTextures: (Bool) If True, all texture files of the asset will be copied to the current project directory
 
         Returns:
@@ -279,7 +292,7 @@ class assetLibrary(dict):
 
         currentProjectPath = os.path.normpath(pm.workspace.path)
         sourceImagesPath = os.path.join(currentProjectPath, "sourceimages")
-        logger.info("Copying Textures to %s" %sourceImagesPath)
+        logger.info("Copying Textures to %s" % sourceImagesPath)
         ## check if the sourceimages folder exists:
         if not os.path.exists(sourceImagesPath):
             os.mkdir(sourceImagesPath)
@@ -300,7 +313,7 @@ class assetLibrary(dict):
                     copyfile(path, newPath)
                     pm.setAttr(file.fileTextureName, newPath)
 
-    def previewSaver(self, name, assetDirectory):
+    def previewSaver(self, name, assetDirectory, uvSnap=True, selectionOnly=True):
         """
         Saves the preview files under the Asset Directory
         Args:
@@ -337,8 +350,9 @@ class assetLibrary(dict):
         pm.modelEditor(panel, e=1, wireframeOnShaded=0)
         pm.viewFit()
 
-        pm.isolateSelect(panel, state=1)
-        pm.isolateSelect(panel, addSelected=True)
+        if selectionOnly:
+            pm.isolateSelect(panel, state=1)
+            pm.isolateSelect(panel, addSelected=True)
         # temporarily deselect
         pm.select(d=True)
         pm.setAttr("defaultRenderGlobals.imageFormat", 8)  # This is the value for jpeg
@@ -358,19 +372,20 @@ class assetLibrary(dict):
         pm.playblast(completeFilename=WFpath, forceOverwrite=True, format='image', width=1600, height=1600,
                      showOrnaments=False, frame=[frame], viewer=False)
 
-        pm.select(selection)
-        # UV Snapshot -- It needs
-        logger.info("Saving UV Snapshots")
-        for i in range(0, len(validShapes)):
-            print "validShape", validShapes[i]
-            # transformNode = validShapes[i].getParent()
-            objName = validShapes[i].name()
-            UVpath = os.path.join(assetDirectory, '%s_uv.jpg' % objName)
-            pm.select(validShapes[i])
-            try:
-                pm.uvSnapshot(o=True, ff="jpg", n=UVpath, xr=1600, yr=1600)
-            except:
-                logger.warning("UV snapshot is missed for %s" %validShapes[i])
+        if uvSnap:
+            pm.select(selection)
+            # UV Snapshot -- It needs
+            logger.info("Saving UV Snapshots")
+            for i in range(0, len(validShapes)):
+                print "validShape", validShapes[i]
+                # transformNode = validShapes[i].getParent()
+                objName = validShapes[i].name()
+                UVpath = os.path.join(assetDirectory, '%s_uv.jpg' % objName)
+                pm.select(validShapes[i])
+                try:
+                    pm.uvSnapshot(o=True, ff="jpg", n=UVpath, xr=1600, yr=1600)
+                except:
+                    logger.warning("UV snapshot is missed for %s" % validShapes[i])
 
         pm.isolateSelect(panel, state=0)
         pm.isolateSelect(panel, removeSelected=True)
@@ -382,6 +397,7 @@ class assetLibrary(dict):
     def updateScreenshot(self, name, assetDirectory):
 
         logger.info("Saving Preview Images")
+        pm.setAttr("defaultRenderGlobals.imageFormat", 8)  # This is the value for jpeg
         thumbPath = os.path.join(assetDirectory, '%s_thumb.jpg' % name)
         SSpath = os.path.join(assetDirectory, '%s_s.jpg' % name)
         # WFpath = os.path.join(assetDirectory, '%s_w.jpg' % name)
@@ -394,7 +410,6 @@ class assetLibrary(dict):
         # screenshot
         pm.playblast(completeFilename=SSpath, forceOverwrite=True, format='image', width=1600, height=1600,
                      showOrnaments=False, frame=[frame], viewer=False)
-
 
     def filePass(self, fileNodes, newPath, *args):
         textures = []
@@ -418,6 +433,7 @@ class assetLibrary(dict):
 
     def findFileNodes(self, shape):
         print "shape:", shape
+
         def checkInputs(node):
             inputNodes = node.inputs()
             if len(inputNodes) == 0:
@@ -425,6 +441,7 @@ class assetLibrary(dict):
             else:
                 filteredNodes = [x for x in inputNodes if x.type() != "renderLayer"]
                 return filteredNodes
+
         # geo = obj.getShape()
         # Get the shading group from the selected mesh
         try:
@@ -493,7 +510,6 @@ class assetLibrary(dict):
             return ext
 
 
-
 def getMayaMainWindow():
     """
     Gets the memory adress of the main window to connect Qt dialog to it.
@@ -505,6 +521,7 @@ def getMayaMainWindow():
     ## put memory adress into a long integer and wrap it as QMainWindow
     ptr = wrapInstance(long(win), QtWidgets.QMainWindow)
     return ptr
+
 
 class bufferUI(QtWidgets.QDialog):
     def __init__(self):
@@ -518,8 +535,10 @@ class bufferUI(QtWidgets.QDialog):
         self.setObjectName("assetLib")
         self.show()
 
+
 class AssetLibraryUI(QtWidgets.QTabWidget):
     tabID = 0
+
     def __init__(self):
         for entry in QtWidgets.QApplication.allWidgets():
             if entry.objectName() == "assetLib":
@@ -527,14 +546,14 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
                 entry.close()
 
         ## I use another QDialog as buffer since Tabs wont work when parented to the Maya Ui.
-        self.buffer=bufferUI()
+        self.buffer = bufferUI()
         super(AssetLibraryUI, self).__init__(parent=self.buffer)
 
         ## This will put the Tab Widget into the buffer layout
         self.buffer.superLayout.addWidget(self)
 
         ## This will zero out the margins caused by the bufferUI
-        self.buffer.superLayout.setContentsMargins(0,0,0,0)
+        self.buffer.superLayout.setContentsMargins(0, 0, 0, 0)
 
         self.setWindowTitle("Asset Library")
         self.setObjectName("assetLib")
@@ -545,15 +564,14 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
         # This is the default tab
         # tabA = libraryTab(DIRECTORY)
 
-
         # first create the libraries defined in the settings file
         libs = self.settings(mode="load")
-        junkPaths=[]
+        junkPaths = []
         for item in libs:
             name = item[0]
             path = item[1]
             if not os.path.exists(path):
-                logger.warning("Cannot reach library path: \n%s \n Removing from the database..." %(path))
+                logger.warning("Cannot reach library path: \n%s \n Removing from the database..." % (path))
                 junkPaths.append(item)
                 continue
             preTab = libraryTab(path)
@@ -564,10 +582,8 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
         for x in junkPaths:
             self.settings(mode="remove", item=x)
 
-
         if len(libs) == 0:
             self.createNewTab()
-
 
         self.addNew = QtWidgets.QWidget()
         # self.addNew.installEventFilter(self.addNew)
@@ -594,9 +610,6 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
         self.tabsRightMenu.addAction(removeTabAction)
         removeTabAction.triggered.connect(self.deleteCurrentTab)
 
-
-
-
         self.currentChanged.connect(self.createNewTab)  # changed!
         # self.currentChanged(self.createNewTab)
 
@@ -606,23 +619,23 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
         print (QtWidgets.QApplication.widgetAt(self.mapToGlobal(point)))
 
     def createNewTab(self):
-        currentIndex=self.currentIndex()
-        totalTabs=self.count()
-        if currentIndex >= (totalTabs-1): ## if it is not the last tab (+)
-            self.setCurrentIndex(currentIndex-1)
+        currentIndex = self.currentIndex()
+        totalTabs = self.count()
+        if currentIndex >= (totalTabs - 1):  ## if it is not the last tab (+)
+            self.setCurrentIndex(currentIndex - 1)
             ## ASK For the new direcory location:
 
-            directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Asset Directory", QtCore.QDir.currentPath())
+            directory = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Asset Directory",
+                                                                   QtCore.QDir.currentPath())
             if directory:
                 tabName = str(os.path.basename(directory))
 
                 self.tabID += 1
                 testTab = libraryTab(directory)
                 self.addTab(testTab, tabName)
-                self.tabBar().moveTab(currentIndex, currentIndex+1)
+                self.tabBar().moveTab(currentIndex, currentIndex + 1)
                 self.setCurrentIndex(currentIndex)
-                self.settings(mode="add", name=tabName , path=directory)
-
+                self.settings(mode="add", name=tabName, path=directory)
 
     # def eventFilter(self, QObject, event):
     #     if event.type() == QtCore.Event.MouseButtonPress:
@@ -630,15 +643,15 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
     #             print("Right button clicked")
     #     return False
 
-## TODO: FOOL PROOF config.json file. Test possible situations
-## TODO: FOOL PROOF missing library folder (a re-path sub menu item within the right click menu?)
+    ## TODO: FOOL PROOF config.json file. Test possible situations
+    ## TODO: FOOL PROOF missing library folder (a re-path sub menu item within the right click menu?)
 
     def deleteCurrentTab(self):
 
-        currentIndex=self.currentIndex()
-        totalTabs=self.count()
+        currentIndex = self.currentIndex()
+        totalTabs = self.count()
 
-        if currentIndex < (totalTabs): ## if it is not the last tab (+)
+        if currentIndex < (totalTabs):  ## if it is not the last tab (+)
             widget = self.widget(currentIndex)
             if widget is not None:
                 widget.deleteLater()
@@ -649,28 +662,28 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
     def settings(self, mode, name=None, path=None, itemIndex=None, item=None):
         """
         Reads and write Library name and path information on/from config file (assetLibraryConfig.json)
-        
+
         Add mode
         adds the name and path of the directory to the database. "name" and "path" arguments are required.
         Ex.
         settings(mode="add", name="NameOfTheLib", path="Absolute/path/of/the/library")
-        
+
         Remove mode
         Removes the given item from the database. Either "itemIndex" or "item" arguments are required. If both given, "item" will be used.
         Ex.
         settings(mode="remove", itemIndex=2)
         or
         settings(mode="remove", item=["Name","Path"])
-        
+
         Rename mode
         Opens a input dialog, renames the selected tab and updates database with the new name
-        
+
         Repath mode
         Opens a folder selection dialog, updates database with the selected folder
-        
+
         Load mode
         Returns the database list.
-        
+
         Args:
             mode: (String) Valid values are "add", "remove", "load".
             name: (String) Tab Name of the Library to be added. Required by "add" mode
@@ -683,8 +696,11 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
 
         """
         ## get the file location
-        settingsFile = os.path.join(os.path.dirname(os.path.abspath( __file__ )),"assetLibraryConfig.json")
-        def dump(data,file):
+        homedir = os.path.expanduser("~")
+        settingsFile = os.path.join(homedir, "assetLibraryConfig.json")
+
+        # settingsFile = os.path.join(os.path.dirname(os.path.abspath( __file__ )),"assetLibraryConfig.json")
+        def dump(data, file):
             with open(file, "w") as f:
                 json.dump(data, f, indent=4)
 
@@ -707,13 +723,12 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
             dump(currentData, settingsFile)
             return
 
-
         if mode == "rename":
             currentIndex = self.currentIndex()
             if currentIndex == self.count():
                 return
             currentData = self.settings(mode="load")
-            exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog','New Name:')
+            exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog', 'New Name:')
             if ok:
                 newInput = str(exportWindow)
                 if not newInput.strip():
@@ -722,7 +737,7 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
                 self.setTabText(currentIndex, newInput)
                 ## update the settings file
                 currentData[currentIndex][0] = newInput
-                dump(currentData,settingsFile)
+                dump(currentData, settingsFile)
                 return
 
         if mode == "repath":
@@ -731,10 +746,11 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
                 return
             currentData = self.settings(mode="load")
 
-            newDir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Asset Directory", QtCore.QDir.currentPath())
+            newDir = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Asset Directory",
+                                                                QtCore.QDir.currentPath())
             if newDir:
                 currentData[currentIndex][1] = newDir
-                dump(currentData,settingsFile)
+                dump(currentData, settingsFile)
                 return
 
         if mode == "load":
@@ -750,6 +766,7 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
 
 class libraryTab(QtWidgets.QWidget):
     viewModeState = 1
+
     def __init__(self, directory):
         self.directory = directory
 
@@ -771,7 +788,6 @@ class libraryTab(QtWidgets.QWidget):
         self.library = assetLibrary(directory)
         self.buildTabUI()
 
-
     def buildTabUI(self):
 
         self.layout = QtWidgets.QVBoxLayout(self)
@@ -790,11 +806,11 @@ class libraryTab(QtWidgets.QWidget):
         self.size = 64
         self.listWidget = QtWidgets.QListWidget()
         self.listWidget.setViewMode(QtWidgets.QListWidget.IconMode)
-        self.listWidget.setMinimumSize(350, 600)
+        self.listWidget.setMinimumSize(350, 400)
         self.listWidget.setIconSize(QtCore.QSize(self.size, self.size))
         self.listWidget.setMovement(QtWidgets.QListView.Static)
         self.listWidget.setResizeMode(QtWidgets.QListWidget.Adjust)
-        self.listWidget.setGridSize(QtCore.QSize(self.size *1.2, self.size *1.4))
+        self.listWidget.setGridSize(QtCore.QSize(self.size * 1.2, self.size * 1.4))
         self.layout.addWidget(self.listWidget)
         self.listWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.listWidget.customContextMenuRequested.connect(self.on_context_menu)
@@ -864,17 +880,17 @@ class libraryTab(QtWidgets.QWidget):
 
         shortcutExport = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+E"), self, self.export)
         shortcutImport = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+I"), self, lambda val=True: self.load(val))
-        scIncreaseIconSize = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl++"), self, lambda val=10: self.adjustIconSize(val))
-        scDecreaseIconSize = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+-"), self, lambda val=-10: self.adjustIconSize(val))
+        scIncreaseIconSize = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl++"), self,
+                                                    lambda val=10: self.adjustIconSize(val))
+        scDecreaseIconSize = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+-"), self,
+                                                    lambda val=-10: self.adjustIconSize(val))
 
         self.populate()
-
 
     def adjustIconSize(self, value):
         self.size += value
         self.listWidget.setIconSize(QtCore.QSize(self.size, self.size))
-        self.listWidget.setGridSize(QtCore.QSize(self.size *1.2, self.size *1.4))
-
+        self.listWidget.setGridSize(QtCore.QSize(self.size * 1.2, self.size * 1.4))
 
     def actionTrigger(self, item):
         currentItem = self.listWidget.currentItem()
@@ -998,4 +1014,3 @@ class libraryTab(QtWidgets.QWidget):
 
             # Finally we add our item to the list
             self.listWidget.addItem(item)
-
