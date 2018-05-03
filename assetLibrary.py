@@ -4,9 +4,9 @@
 ## AUTHOR:	Arda Kutlu
 ## e-mail: ardakutlu@gmail.com
 ## Web: http://www.ardakutlu.com
-## VERSION:1.21(beta)
+## VERSION:1.5(beta)
 ## CREATION DATE: 11.07.2017
-## LAST MODIFIED DATE: 07.10.2017
+## LAST MODIFIED DATE: 03.05.2018
 ##
 ## DESCRIPTION: Asset Library which will hold the frequently used product models. This Script are based on the Dhruv Govil's example code: controller Library
 ## (https://github.com/dgovil/PythonForMayaSamples/tree/master/controllerLibrary)
@@ -51,6 +51,8 @@
 ## - CTRL+MINUS(-) will decrease the icon size
 
 ## Version History:
+## v1.5
+## - Added various export options
 ## v1.21
 ## - Added right click menu "replace Screenshot with current view" (replace Screenshot with last render is not working currently)
 ## v1.2
@@ -75,7 +77,7 @@ from maya import OpenMayaUI as omui
 
 logging.basicConfig()
 logger = logging.getLogger('AssetLibrary')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 if Qt.__binding__ == "PySide":
     logger.debug('Using PySide with shiboken')
@@ -115,7 +117,7 @@ class assetLibrary(dict):
         if not os.path.exists(directory):
             logger.error("Cannot reach the library directory: \n" + directory)
 
-    def saveAsset(self, assetName, screenshot=True, moveCenter=False, selectionOnly=False, **info):
+    def saveAsset(self, assetName, screenshot=True, moveCenter=False, selectionOnly=True, exportUV=True, exportOBJ=True, **info):
         """
         Saves the selected object(s) as an asset into the predefined library
         Args:
@@ -142,10 +144,14 @@ class assetLibrary(dict):
         assetDirectory = os.path.join(self.directory, assetName)
 
         ## TODO // in a scenario where a group object selected, select all meshes under the group recursively (you did that before somewhere else)
-        selection = pm.ls(sl=True, type="transform")
-        if len(selection) == 0 and selectionOnly:
-            pm.warning("No object selected, nothing to do")
-            return
+        if selectionOnly:
+            selection = pm.ls(sl=True, type="transform")
+            if len(selection) == 0:
+                pm.warning("No object selected, nothing to do")
+                return
+        else:
+            selection = pm.ls(type="transform")
+
 
         if not os.path.exists(assetDirectory):
             os.mkdir(assetDirectory)
@@ -171,14 +177,18 @@ class assetLibrary(dict):
             pm.delete(tempPo)
             pm.delete(tempLoc)
 
-        thumbPath, ssPath, swPath = self.previewSaver(assetName, assetDirectory, selectionOnly=selectionOnly)
+        thumbPath, ssPath, swPath = self.previewSaver(assetName, assetDirectory, selectionOnly=selectionOnly, uvSnap=exportUV)
+
 
         if selectionOnly:
             pm.select(selection)
             # objName = "N/A"
-            objName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
-                                        options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True,
-                                        es=True)
+            if exportOBJ:
+                objName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
+                                            options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True,
+                                            es=True)
+            else:
+                objName = "NA"
             maName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="mayaAscii")
 
             # selection for poly evaluate
@@ -189,8 +199,11 @@ class assetLibrary(dict):
         else:
             pm.select(d=True)
             # objName = "N/A"
-            objName = pm.exportAll(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
-                                   options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True)
+            if exportOBJ:
+                objName = pm.exportAll(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
+                                    options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True)
+            else:
+                objName = "NA"
             maName = pm.exportAll(os.path.join(assetDirectory, assetName), type="mayaAscii")
 
             # selection for poly evaluate
@@ -211,11 +224,11 @@ class assetLibrary(dict):
         info['sourceProject'] = originalPath
 
         # query the number of faces
-        pm.polyEvaluate(f=True)
+        # pm.polyEvaluate(f=True)
         # Result: 16
 
         # query the number of triangles
-        pm.polyEvaluate(t=True)
+        # pm.polyEvaluate(t=True)
 
         propFile = os.path.join(assetDirectory, "%s.json" % assetName)
 
@@ -282,6 +295,8 @@ class assetLibrary(dict):
 
         logger.info("Importing asset")
         path = os.path.join(self.directory, self[name]['assetName'], self[name][mode])
+        if path == "NA":
+            logger.warning("No OBJ file exported for this asset")
 
         textureList = self[name]['textureFiles']
         pm.importFile(path)
@@ -326,6 +341,10 @@ class assetLibrary(dict):
         """
         logger.info("Saving Preview Images")
         selection = pm.ls(sl=True)
+        if not selectionOnly:
+            # deselect if you dont want to focus only on the selection
+            pm.select(d=True)
+
 
         validShapes = pm.listRelatives(selection, ad=True, type=["mesh", "nurbsSurface"])
         thumbPath = os.path.join(assetDirectory, '%s_thumb.jpg' % name)
@@ -372,8 +391,8 @@ class assetLibrary(dict):
         pm.playblast(completeFilename=WFpath, forceOverwrite=True, format='image', width=1600, height=1600,
                      showOrnaments=False, frame=[frame], viewer=False)
 
+        pm.select(selection)
         if uvSnap:
-            pm.select(selection)
             # UV Snapshot -- It needs
             logger.info("Saving UV Snapshots")
             for i in range(0, len(validShapes)):
@@ -387,8 +406,9 @@ class assetLibrary(dict):
                 except:
                     logger.warning("UV snapshot is missed for %s" % validShapes[i])
 
-        pm.isolateSelect(panel, state=0)
-        pm.isolateSelect(panel, removeSelected=True)
+        if selectionOnly:
+            pm.isolateSelect(panel, state=0)
+            pm.isolateSelect(panel, removeSelected=True)
 
         # TODO // store the scene defaults (camera position, imageFormat, etc.
 
@@ -785,6 +805,10 @@ class libraryTab(QtWidgets.QWidget):
 
         super(libraryTab, self).__init__()
 
+        self.exportUV_def = True
+        self.exportOBJ_def = True
+        self.selectionOnly_def = True
+
         self.library = assetLibrary(directory)
         self.buildTabUI()
 
@@ -943,21 +967,39 @@ class libraryTab(QtWidgets.QWidget):
         # show context menu
         self.popMenu.exec_(self.listWidget.mapToGlobal(point))
 
-    def export(self):
+    def onExport(self):
 
-        exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog',
-                                                          'SAVE BEFORE PROCEED\n\nANY UNSAVED WORK WILL BE LOST\n\nEnter Asset Name:')
-        if ok:
-            name = str(exportWindow)
-            logger.debug(name.strip())
-            # assert name.strip() == False, "You must give a name!"
-            if not name.strip():
-                logger.warn("You must give a name!")
-                return
-            self.library.saveAsset(name)
-            self.populate()
-            # self.exportWindow.show()
-            logger.info("Asset Exported")
+        assetName = self.assetname_lineEdit.text()
+        if not assetName.strip():
+            logger.warn("You must enter a name for the asset")
+            return
+        # selectionOnly = self.selectionexport_radioButton.isChecked()
+        # exportUV = self.exportuv_checkBox.isChecked()
+        # exportOBJ = self.exportobj_checkBox.isChecked()
+
+        self.exportUV_def = self.exportuv_checkBox.isChecked()
+        self.exportOBJ_def = self.exportobj_checkBox.isChecked()
+        self.selectionOnly_def = self.selectionexport_radioButton.isChecked()
+
+        self.library.saveAsset(assetName=assetName, selectionOnly=self.selectionOnly_def, exportUV=self.exportUV_def, exportOBJ=self.exportOBJ_def)
+        self.populate()
+        logger.info("Asset Exported")
+
+    # def export(self):
+    #
+    #     exportWindow, ok = QtWidgets.QInputDialog.getText(self, 'Text Input Dialog',
+    #                                                       'SAVE BEFORE PROCEED\n\nANY UNSAVED WORK WILL BE LOST\n\nEnter Asset Name:')
+    #     if ok:
+    #         name = str(exportWindow)
+    #         logger.debug(name.strip())
+    #         # assert name.strip() == False, "You must give a name!"
+    #         if not name.strip():
+    #             logger.warn("You must give a name!")
+    #             return
+    #         self.library.saveAsset(name)
+    #         self.populate()
+    #         # self.exportWindow.show()
+    #         logger.info("Asset Exported")
 
     def exportDialog(self):
         # self.save_Dialog = QtWidgets.QDialog(parent=self)
@@ -1011,11 +1053,15 @@ class libraryTab(QtWidgets.QWidget):
 
         self.sceneexport_radioButton = QtWidgets.QRadioButton(self.export_Dialog)
         self.sceneexport_radioButton.setGeometry(QtCore.QRect(140, 100, 71, 21))
+        self.sceneexport_radioButton.setText("Scene")
         self.sceneexport_radioButton.setObjectName(("sceneexport_radioButton"))
+        self.sceneexport_radioButton.setChecked(not self.selectionOnly_def)
 
         self.selectionexport_radioButton = QtWidgets.QRadioButton(self.export_Dialog)
         self.selectionexport_radioButton.setGeometry(QtCore.QRect(210, 100, 71, 21))
+        self.selectionexport_radioButton.setText("Selection")
         self.selectionexport_radioButton.setObjectName(("selectionexport_radioButton"))
+        self.selectionexport_radioButton.setChecked(self.selectionOnly_def)
 
         self.additionals_label = QtWidgets.QLabel(self.export_Dialog)
         self.additionals_label.setGeometry(QtCore.QRect(10, 130, 91, 21))
@@ -1023,11 +1069,21 @@ class libraryTab(QtWidgets.QWidget):
         self.additionals_label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
         self.additionals_label.setObjectName(("additionals_label"))
 
+        self.exportuv_checkBox = QtWidgets.QCheckBox(self.export_Dialog)
+        self.exportuv_checkBox.setGeometry(QtCore.QRect(140, 130, 151, 20))
+        self.exportuv_checkBox.setLayoutDirection(QtCore.Qt.LeftToRight)
+        self.exportuv_checkBox.setText(("Export UV Snapshots"))
+        self.exportuv_checkBox.setShortcut((""))
+        self.exportuv_checkBox.setObjectName(("exportuv_checkBox"))
+        self.exportuv_checkBox.setChecked(self.exportUV_def)
+
         self.exportobj_checkBox = QtWidgets.QCheckBox(self.export_Dialog)
+        self.exportobj_checkBox.setGeometry(QtCore.QRect(140, 160, 151, 20))
         self.exportobj_checkBox.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.exportobj_checkBox.setText(("Export OBJ Copy"))
         self.exportobj_checkBox.setShortcut((""))
         self.exportobj_checkBox.setObjectName(("exportobj_checkBox"))
+        self.exportobj_checkBox.setChecked(self.exportOBJ_def)
 
         self.export_pushButton = QtWidgets.QPushButton(self.export_Dialog)
         self.export_pushButton.setGeometry(QtCore.QRect(200, 200, 80, 22))
@@ -1040,6 +1096,10 @@ class libraryTab(QtWidgets.QWidget):
         self.cancel_pushButton.setObjectName(("cancel_pushButton"))
 
         self.export_Dialog.show()
+
+        self.export_pushButton.clicked.connect(self.onExport)
+        self.export_pushButton.clicked.connect(self.export_Dialog.accept)
+        self.cancel_pushButton.clicked.connect(self.export_Dialog.reject)
 
     def load(self, copy_textures, mode="maPath"):
         """
