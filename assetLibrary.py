@@ -77,7 +77,7 @@ from maya import OpenMayaUI as omui
 
 logging.basicConfig()
 logger = logging.getLogger('AssetLibrary')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 if Qt.__binding__ == "PySide":
     logger.debug('Using PySide with shiboken')
