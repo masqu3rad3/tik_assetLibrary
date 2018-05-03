@@ -117,7 +117,11 @@ class assetLibrary(dict):
         if not os.path.exists(directory):
             logger.error("Cannot reach the library directory: \n" + directory)
 
+<<<<<<< HEAD
     def saveAsset(self, assetName, screenshot=True, moveCenter=False, **info):
+=======
+    def saveAsset(self, assetName, screenshot=True, moveCenter=False, selectionOnly=False, **info):
+>>>>>>> e2a7266ba6ffe400d58d3d970e185fb88cce7845
         """
         Saves the selected object(s) as an asset into the predefined library
         Args:
@@ -145,7 +149,11 @@ class assetLibrary(dict):
 
         ## TODO // in a scenario where a group object selected, select all meshes under the group recursively (you did that before somewhere else)
         selection = pm.ls(sl=True, type="transform")
+<<<<<<< HEAD
         if len(selection) == 0:
+=======
+        if len(selection) == 0 and selectionOnly:
+>>>>>>> e2a7266ba6ffe400d58d3d970e185fb88cce7845
             pm.warning("No object selected, nothing to do")
             return
 
@@ -173,6 +181,7 @@ class assetLibrary(dict):
             pm.delete(tempPo)
             pm.delete(tempLoc)
 
+<<<<<<< HEAD
         thumbPath, ssPath, swPath = self.previewSaver(assetName, assetDirectory)
 
         pm.select(selection)
@@ -185,6 +194,33 @@ class assetLibrary(dict):
         pm.select(possibleFileHolders)
         polyCount = pm.polyEvaluate(f=True)
         tiangleCount = pm.polyEvaluate(t=True)
+=======
+        thumbPath, ssPath, swPath = self.previewSaver(assetName, assetDirectory, selectionOnly=selectionOnly)
+
+        if selectionOnly:
+            pm.select(selection)
+            # objName = "N/A"
+            objName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
+                                        options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True, es=True)
+            maName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="mayaAscii")
+
+            # selection for poly evaluate
+            pm.select(possibleFileHolders)
+            polyCount = pm.polyEvaluate(f=True)
+            tiangleCount = pm.polyEvaluate(t=True)
+
+        else:
+            pm.select(d=True)
+            # objName = "N/A"
+            objName = pm.exportAll(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
+                                        options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True)
+            maName = pm.exportAll(os.path.join(assetDirectory, assetName), type="mayaAscii")
+
+            # selection for poly evaluate
+            pm.select(d=True)
+            polyCount = pm.polyEvaluate(f=True)
+            tiangleCount = pm.polyEvaluate(t=True)
+>>>>>>> e2a7266ba6ffe400d58d3d970e185fb88cce7845
 
         ## Json stuff
 
@@ -301,7 +337,11 @@ class assetLibrary(dict):
                     copyfile(path, newPath)
                     pm.setAttr(file.fileTextureName, newPath)
 
+<<<<<<< HEAD
     def previewSaver(self, name, assetDirectory):
+=======
+    def previewSaver(self, name, assetDirectory, uvSnap=True, selectionOnly=True):
+>>>>>>> e2a7266ba6ffe400d58d3d970e185fb88cce7845
         """
         Saves the preview files under the Asset Directory
         Args:
@@ -338,8 +378,14 @@ class assetLibrary(dict):
         pm.modelEditor(panel, e=1, wireframeOnShaded=0)
         pm.viewFit()
 
+<<<<<<< HEAD
         pm.isolateSelect(panel, state=1)
         pm.isolateSelect(panel, addSelected=True)
+=======
+        if selectionOnly:
+            pm.isolateSelect(panel, state=1)
+            pm.isolateSelect(panel, addSelected=True)
+>>>>>>> e2a7266ba6ffe400d58d3d970e185fb88cce7845
         # temporarily deselect
         pm.select(d=True)
         pm.setAttr("defaultRenderGlobals.imageFormat", 8)  # This is the value for jpeg
@@ -359,6 +405,7 @@ class assetLibrary(dict):
         pm.playblast(completeFilename=WFpath, forceOverwrite=True, format='image', width=1600, height=1600,
                      showOrnaments=False, frame=[frame], viewer=False)
 
+<<<<<<< HEAD
         # pm.select(selection)
         # UV Snapshot -- It needs
         # logger.info("Saving UV Snapshots")
@@ -372,6 +419,22 @@ class assetLibrary(dict):
         #         pm.uvSnapshot(o=True, ff="jpg", n=UVpath, xr=1600, yr=1600)
         #     except:
         #         logger.warning("UV snapshot is missed for %s" %validShapes[i])
+=======
+        if uvSnap:
+            pm.select(selection)
+            # UV Snapshot -- It needs
+            logger.info("Saving UV Snapshots")
+            for i in range(0, len(validShapes)):
+                print "validShape", validShapes[i]
+                # transformNode = validShapes[i].getParent()
+                objName = validShapes[i].name()
+                UVpath = os.path.join(assetDirectory, '%s_uv.jpg' % objName)
+                pm.select(validShapes[i])
+                try:
+                    pm.uvSnapshot(o=True, ff="jpg", n=UVpath, xr=1600, yr=1600)
+                except:
+                    logger.warning("UV snapshot is missed for %s" %validShapes[i])
+>>>>>>> e2a7266ba6ffe400d58d3d970e185fb88cce7845
 
         pm.isolateSelect(panel, state=0)
         pm.isolateSelect(panel, removeSelected=True)
@@ -794,7 +857,11 @@ class libraryTab(QtWidgets.QWidget):
         self.size = 64
         self.listWidget = QtWidgets.QListWidget()
         self.listWidget.setViewMode(QtWidgets.QListWidget.IconMode)
+<<<<<<< HEAD
         self.listWidget.setMinimumSize(350, 600)
+=======
+        self.listWidget.setMinimumSize(350, 400)
+>>>>>>> e2a7266ba6ffe400d58d3d970e185fb88cce7845
         self.listWidget.setIconSize(QtCore.QSize(self.size, self.size))
         self.listWidget.setMovement(QtWidgets.QListView.Static)
         self.listWidget.setResizeMode(QtWidgets.QListWidget.Adjust)

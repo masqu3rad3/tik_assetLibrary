@@ -4,9 +4,9 @@
 ## AUTHOR:	Arda Kutlu
 ## e-mail: ardakutlu@gmail.com
 ## Web: http://www.ardakutlu.com
-## VERSION:1.2(beta)
+## VERSION:1.21(beta)
 ## CREATION DATE: 11.07.2017
-## LAST MODIFIED DATE: 26.07.2017
+## LAST MODIFIED DATE: 07.10.2017
 ##
 ## DESCRIPTION: Asset Library which will hold the frequently used product models. This Script are based on the Dhruv Govil's example code: controller Library
                 ## (https://github.com/dgovil/PythonForMayaSamples/tree/master/controllerLibrary)
@@ -51,6 +51,8 @@
 ## - CTRL+MINUS(-) will decrease the icon size
 
 ## Version History:
+## v1.21
+## - Added right click menu "replace Screenshot with current view" (replace Screenshot with last render is not working currently)
 ## v1.2
 ## - Support for multiple Libraries added. Tabbed window allows to control multiple libraries at the same time
 ## - Directory path is not fixed therefore now it can be used anywhere for multiple purposes.
@@ -376,6 +378,23 @@ class assetLibrary(dict):
         # TODO // store the scene defaults (camera position, imageFormat, etc.
 
         return thumbPath, SSpath, WFpath
+
+    def updateScreenshot(self, name, assetDirectory):
+
+        logger.info("Saving Preview Images")
+        thumbPath = os.path.join(assetDirectory, '%s_thumb.jpg' % name)
+        SSpath = os.path.join(assetDirectory, '%s_s.jpg' % name)
+        # WFpath = os.path.join(assetDirectory, '%s_w.jpg' % name)
+
+        frame = pm.currentTime(query=True)
+        # thumb
+        pm.playblast(completeFilename=thumbPath, forceOverwrite=True, format='image', width=200, height=200,
+                     showOrnaments=False, frame=[frame], viewer=False)
+
+        # screenshot
+        pm.playblast(completeFilename=SSpath, forceOverwrite=True, format='image', width=1600, height=1600,
+                     showOrnaments=False, frame=[frame], viewer=False)
+
 
     def filePass(self, fileNodes, newPath, *args):
         textures = []
@@ -813,6 +832,16 @@ class libraryTab(QtWidgets.QWidget):
 
         self.popMenu.addSeparator()
 
+        self.replaceScrWithCur = QtWidgets.QAction('Replace Screenshot with current view', self)
+        self.popMenu.addAction(self.replaceScrWithCur)
+        self.replaceScrWithCur.triggered.connect(lambda item='replaceScrWithCurrentView': self.actionTrigger(item))
+
+        self.replaceScrWithRen = QtWidgets.QAction('Replace Screenshot with last render', self)
+        self.popMenu.addAction(self.replaceScrWithRen)
+        self.replaceScrWithRen.triggered.connect(lambda item='replaceScrWithLastRender': self.actionTrigger(item))
+
+        self.popMenu.addSeparator()
+
         openFolderAction = QtWidgets.QAction('Show folder in explorer', self)
         self.popMenu.addAction(openFolderAction)
         openFolderAction.triggered.connect(lambda item='openFolder': self.actionTrigger(item))
@@ -877,6 +906,16 @@ class libraryTab(QtWidgets.QWidget):
             elif self.viewModeState == -1:
                 self.viewAsListAction.setText("View As Icons")
                 self.listWidget.setViewMode(QtWidgets.QListWidget.ListMode)
+
+        elif item == 'replaceScrWithCurrentView':
+            asset = info.get('assetName')
+            path = os.path.join(self.directory, asset)
+            self.library.updateScreenshot(asset, path)
+            self.populate()
+
+        elif item == 'replaceScrWithLastRender':
+            # //TODO
+            pass
 
         else:
             ss = info.get(item)
