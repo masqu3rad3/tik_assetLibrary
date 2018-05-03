@@ -875,10 +875,10 @@ class libraryTab(QtWidgets.QWidget):
         btnLayout.addWidget(refreshBtn)
 
         self.exportBtn = QtWidgets.QPushButton('Export')
-        self.exportBtn.clicked.connect(self.export)
+        self.exportBtn.clicked.connect(self.exportDialog)
         btnLayout.addWidget(self.exportBtn)
 
-        shortcutExport = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+E"), self, self.export)
+        shortcutExport = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+E"), self, self.exportDialog)
         shortcutImport = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl+I"), self, lambda val=True: self.load(val))
         scIncreaseIconSize = Qt.QtWidgets.QShortcut(Qt.QtGui.QKeySequence("Ctrl++"), self,
                                                     lambda val=10: self.adjustIconSize(val))
@@ -958,6 +958,88 @@ class libraryTab(QtWidgets.QWidget):
             self.populate()
             # self.exportWindow.show()
             logger.info("Asset Exported")
+
+    def exportDialog(self):
+        # self.save_Dialog = QtWidgets.QDialog(parent=self)
+        # self.save_Dialog.setModal(True)
+        # self.save_Dialog.setObjectName(("save_Dialog"))
+        # self.save_Dialog.resize(500, 240)
+        # self.save_Dialog.setMinimumSize(QtCore.QSize(500, 240))
+        # self.save_Dialog.setMaximumSize(QtCore.QSize(500, 240))
+        # self.save_Dialog.setWindowTitle(("Save New Base Scene"))
+        # self.save_Dialog.setToolTip((""))
+        # self.save_Dialog.setStatusTip((""))
+        # self.save_Dialog.setWhatsThis((""))
+        # self.save_Dialog.setAccessibleName((""))
+        # self.save_Dialog.setAccessibleDescription((""))
+
+        self.export_Dialog = QtWidgets.QDialog(parent=self)
+        self.export_Dialog.setModal(True)
+        self.export_Dialog.setObjectName(("export_Dialog"))
+        self.export_Dialog.resize(319, 242)
+        self.export_Dialog.setWindowTitle(("Export"))
+
+        self.warning_label = QtWidgets.QLabel(self.export_Dialog)
+        self.warning_label.setGeometry(QtCore.QRect(100, 20, 101, 21))
+        self.warning_label.setText(("!!! WARNING !!!"))
+        self.warning_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.warning_label.setObjectName(("warning_label"))
+
+        self.warning2_label = QtWidgets.QLabel(self.export_Dialog)
+        self.warning2_label.setGeometry(QtCore.QRect(20, 40, 271, 21))
+        self.warning2_label.setText(("Make sure the scene is saved before proceeding"))
+        self.warning2_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.warning2_label.setObjectName(("warning2_label"))
+
+        self.assetname_label = QtWidgets.QLabel(self.export_Dialog)
+        self.assetname_label.setGeometry(QtCore.QRect(10, 70, 91, 21))
+        self.assetname_label.setText(("Asset Name:"))
+        self.assetname_label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
+        self.assetname_label.setObjectName(("assetname_label"))
+
+        self.assetname_lineEdit = QtWidgets.QLineEdit(self.export_Dialog)
+        self.assetname_lineEdit.setGeometry(QtCore.QRect(140, 70, 141, 22))
+        self.assetname_lineEdit.setAlignment(QtCore.Qt.AlignCenter)
+        self.assetname_lineEdit.setPlaceholderText((""))
+        self.assetname_lineEdit.setObjectName(("assetname_lineEdit"))
+
+        self.assetincludes_label = QtWidgets.QLabel(self.export_Dialog)
+        self.assetincludes_label.setGeometry(QtCore.QRect(10, 100, 91, 21))
+        self.assetincludes_label.setText(("Asset Includes:"))
+        self.assetincludes_label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
+        self.assetincludes_label.setObjectName(("assetincludes_label"))
+
+        self.sceneexport_radioButton = QtWidgets.QRadioButton(self.export_Dialog)
+        self.sceneexport_radioButton.setGeometry(QtCore.QRect(140, 100, 71, 21))
+        self.sceneexport_radioButton.setObjectName(("sceneexport_radioButton"))
+
+        self.selectionexport_radioButton = QtWidgets.QRadioButton(self.export_Dialog)
+        self.selectionexport_radioButton.setGeometry(QtCore.QRect(210, 100, 71, 21))
+        self.selectionexport_radioButton.setObjectName(("selectionexport_radioButton"))
+
+        self.additionals_label = QtWidgets.QLabel(self.export_Dialog)
+        self.additionals_label.setGeometry(QtCore.QRect(10, 130, 91, 21))
+        self.additionals_label.setText(("Additionals:"))
+        self.additionals_label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTrailing | QtCore.Qt.AlignVCenter)
+        self.additionals_label.setObjectName(("additionals_label"))
+
+        self.exportobj_checkBox = QtWidgets.QCheckBox(self.export_Dialog)
+        self.exportobj_checkBox.setLayoutDirection(QtCore.Qt.LeftToRight)
+        self.exportobj_checkBox.setText(("Export OBJ Copy"))
+        self.exportobj_checkBox.setShortcut((""))
+        self.exportobj_checkBox.setObjectName(("exportobj_checkBox"))
+
+        self.export_pushButton = QtWidgets.QPushButton(self.export_Dialog)
+        self.export_pushButton.setGeometry(QtCore.QRect(200, 200, 80, 22))
+        self.export_pushButton.setText(("Export"))
+        self.export_pushButton.setObjectName(("export_pushButton"))
+
+        self.cancel_pushButton = QtWidgets.QPushButton(self.export_Dialog)
+        self.cancel_pushButton.setGeometry(QtCore.QRect(110, 200, 80, 22))
+        self.cancel_pushButton.setText(("Cancel"))
+        self.cancel_pushButton.setObjectName(("cancel_pushButton"))
+
+        self.export_Dialog.show()
 
     def load(self, copy_textures, mode="maPath"):
         """

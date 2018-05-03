@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>395</width>
-    <height>294</height>
+    <width>319</width>
+    <height>242</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -31,33 +31,63 @@
   <widget class="QPushButton" name="export_pushButton">
    <property name="geometry">
     <rect>
-     <x>290</x>
-     <y>240</y>
+     <x>200</x>
+     <y>200</y>
      <width>80</width>
      <height>22</height>
     </rect>
    </property>
+   <property name="toolTip">
+    <string notr="true"/>
+   </property>
+   <property name="statusTip">
+    <string notr="true"/>
+   </property>
+   <property name="whatsThis">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleName">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleDescription">
+    <string notr="true"/>
+   </property>
    <property name="text">
-    <string>Export</string>
+    <string notr="true">Export</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="export_pushButton_2">
+  <widget class="QPushButton" name="cancel_pushButton">
    <property name="geometry">
     <rect>
-     <x>200</x>
-     <y>240</y>
+     <x>110</x>
+     <y>200</y>
      <width>80</width>
      <height>22</height>
     </rect>
    </property>
+   <property name="toolTip">
+    <string notr="true"/>
+   </property>
+   <property name="statusTip">
+    <string notr="true"/>
+   </property>
+   <property name="whatsThis">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleName">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleDescription">
+    <string notr="true"/>
+   </property>
    <property name="text">
-    <string>Cancel</string>
+    <string notr="true">Cancel</string>
    </property>
   </widget>
   <widget class="QLabel" name="warning_label">
    <property name="geometry">
     <rect>
-     <x>140</x>
+     <x>100</x>
      <y>20</y>
      <width>101</width>
      <height>21</height>
@@ -79,18 +109,18 @@
     <string notr="true"/>
    </property>
    <property name="text">
-    <string>!!! WARNING !!!</string>
+    <string notr="true">!!! WARNING !!!</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignCenter</set>
    </property>
   </widget>
-  <widget class="QLabel" name="warning_label_2">
+  <widget class="QLabel" name="warning2_label">
    <property name="geometry">
     <rect>
-     <x>30</x>
+     <x>20</x>
      <y>40</y>
-     <width>331</width>
+     <width>271</width>
      <height>21</height>
     </rect>
    </property>
@@ -110,20 +140,35 @@
     <string notr="true"/>
    </property>
    <property name="text">
-    <string>Make sure the scene is saved before proceeding</string>
+    <string notr="true">Make sure the scene is saved before proceeding</string>
    </property>
    <property name="alignment">
     <set>Qt::AlignCenter</set>
    </property>
   </widget>
-  <widget class="QCheckBox" name="checkBox">
+  <widget class="QCheckBox" name="exportuv_checkBox">
    <property name="geometry">
     <rect>
-     <x>180</x>
-     <y>100</y>
+     <x>140</x>
+     <y>130</y>
      <width>151</width>
      <height>20</height>
     </rect>
+   </property>
+   <property name="toolTip">
+    <string notr="true"/>
+   </property>
+   <property name="statusTip">
+    <string notr="true"/>
+   </property>
+   <property name="whatsThis">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleName">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleDescription">
+    <string notr="true"/>
    </property>
    <property name="layoutDirection">
     <enum>Qt::LeftToRight</enum>
@@ -135,36 +180,36 @@
     <string notr="true"/>
    </property>
   </widget>
-  <widget class="QRadioButton" name="extension_ma_radioButton">
+  <widget class="QRadioButton" name="sceneexport_radioButton">
    <property name="geometry">
     <rect>
-     <x>180</x>
-     <y>140</y>
-     <width>51</width>
-     <height>20</height>
+     <x>140</x>
+     <y>100</y>
+     <width>71</width>
+     <height>21</height>
     </rect>
    </property>
    <property name="text">
-    <string>.ma</string>
+    <string>Scene</string>
    </property>
   </widget>
-  <widget class="QRadioButton" name="extension_mb_radioButton">
+  <widget class="QRadioButton" name="selectionexport_radioButton">
    <property name="geometry">
     <rect>
-     <x>240</x>
-     <y>140</y>
-     <width>51</width>
-     <height>20</height>
+     <x>210</x>
+     <y>100</y>
+     <width>71</width>
+     <height>21</height>
     </rect>
    </property>
    <property name="text">
-    <string>.mb</string>
+    <string>Selection</string>
    </property>
   </widget>
   <widget class="QLineEdit" name="assetname_lineEdit">
    <property name="geometry">
     <rect>
-     <x>180</x>
+     <x>140</x>
      <y>70</y>
      <width>141</width>
      <height>22</height>
@@ -195,7 +240,7 @@
   <widget class="QLabel" name="assetname_label">
    <property name="geometry">
     <rect>
-     <x>80</x>
+     <x>10</x>
      <y>70</y>
      <width>91</width>
      <height>21</height>
@@ -217,10 +262,106 @@
     <string notr="true"/>
    </property>
    <property name="text">
-    <string>Asset Name:</string>
+    <string notr="true">Asset Name:</string>
    </property>
    <property name="alignment">
-    <set>Qt::AlignCenter</set>
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QLabel" name="assetincludes_label">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>100</y>
+     <width>91</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string notr="true"/>
+   </property>
+   <property name="statusTip">
+    <string notr="true"/>
+   </property>
+   <property name="whatsThis">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleName">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleDescription">
+    <string notr="true"/>
+   </property>
+   <property name="text">
+    <string notr="true">Asset Includes:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QLabel" name="additionals_label">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>130</y>
+     <width>91</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string notr="true"/>
+   </property>
+   <property name="statusTip">
+    <string notr="true"/>
+   </property>
+   <property name="whatsThis">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleName">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleDescription">
+    <string notr="true"/>
+   </property>
+   <property name="text">
+    <string notr="true">Additionals:</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="exportobj_checkBox">
+   <property name="geometry">
+    <rect>
+     <x>140</x>
+     <y>160</y>
+     <width>151</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="toolTip">
+    <string notr="true"/>
+   </property>
+   <property name="statusTip">
+    <string notr="true"/>
+   </property>
+   <property name="whatsThis">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleName">
+    <string notr="true"/>
+   </property>
+   <property name="accessibleDescription">
+    <string notr="true"/>
+   </property>
+   <property name="layoutDirection">
+    <enum>Qt::LeftToRight</enum>
+   </property>
+   <property name="text">
+    <string notr="true">Export OBJ Copy</string>
+   </property>
+   <property name="shortcut">
+    <string notr="true"/>
    </property>
   </widget>
  </widget>
