@@ -51,6 +51,8 @@
 ## - CTRL+MINUS(-) will decrease the icon size
 
 ## Version History:
+## v1.6
+## - uv snapshot bug fix and Namespace support
 ## v1.5
 ## - Added various export options
 ## v1.21
@@ -75,6 +77,7 @@ import logging
 from Qt import QtWidgets, QtCore, QtGui
 from maya import OpenMayaUI as omui
 
+AL_title= "Asset Library v1.6"
 logging.basicConfig()
 logger = logging.getLogger('AssetLibrary')
 logger.setLevel(logging.INFO)
@@ -343,6 +346,7 @@ class assetLibrary(dict):
         selection = pm.ls(sl=True)
         if not selectionOnly:
             # deselect if you dont want to focus only on the selection
+            selection = pm.ls(type="transform")
             pm.select(d=True)
 
 
@@ -396,9 +400,10 @@ class assetLibrary(dict):
             # UV Snapshot -- It needs
             logger.info("Saving UV Snapshots")
             for i in range(0, len(validShapes)):
-                print "validShape", validShapes[i]
+                # print "validShape", validShapes[i]
                 # transformNode = validShapes[i].getParent()
-                objName = validShapes[i].name()
+                objName = validShapes[i].name().replace(":", "_")
+                print "objName:", objName
                 UVpath = os.path.join(assetDirectory, '%s_uv.jpg' % objName)
                 pm.select(validShapes[i])
                 try:
@@ -551,7 +556,7 @@ class bufferUI(QtWidgets.QDialog):
         parent = getMayaMainWindow()
         super(bufferUI, self).__init__(parent=parent)
         self.superLayout = QtWidgets.QVBoxLayout(self)
-        self.setWindowTitle("Asset Library")
+        self.setWindowTitle(AL_title)
         self.setObjectName("assetLib")
         self.show()
 
@@ -575,7 +580,7 @@ class AssetLibraryUI(QtWidgets.QTabWidget):
         ## This will zero out the margins caused by the bufferUI
         self.buffer.superLayout.setContentsMargins(0, 0, 0, 0)
 
-        self.setWindowTitle("Asset Library")
+        self.setWindowTitle(AL_title)
         self.setObjectName("assetLib")
         self.tabDialog()
 
