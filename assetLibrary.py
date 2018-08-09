@@ -187,6 +187,8 @@ class assetLibrary(dict):
             pm.select(selection)
             # objName = "N/A"
             if exportOBJ:
+                if not pm.pluginInfo('objExport', l=True, q=True):
+                    pm.loadPlugin('objExport')
                 objName = pm.exportSelected(os.path.join(assetDirectory, assetName), type="OBJexport", force=True,
                                             options="groups=1;ptgroups=1;materials=1;smoothing=1;normals=1", pr=True,
                                             es=True)
